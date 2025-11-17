@@ -1,5 +1,5 @@
 // ===========================================
-// APP.JS – PWA MODULAR COMPLETO (FINALIZADO)
+// APP.JS – PWA MODULAR COMPLETO (FINAL)
 // ===========================================
 
 // -------------------------------------------
@@ -32,7 +32,7 @@ const APP_STATE = {
   roteiro: null,
 
   respostas: {},      // { idPergunta: valor }
-  fotos: {},          // { idPergunta: [fotoId, ...] }
+  fotos: {},          // { idPergunta: [fotoId,...] }
   fotoIndex: {}       // { idPergunta: proximoNumero }
 };
 
@@ -57,7 +57,6 @@ function showMessage(msg, ok = false) {
     alert(msg);
     return;
   }
-
   box.textContent = msg;
   box.classList.remove("hidden");
   box.classList.toggle("bg-red-500", !ok);
@@ -90,6 +89,7 @@ function carregarMetaDoLocalStorage() {
 
 function initLocaisSelect() {
   const sel = document.getElementById("local");
+  if (!sel) return;
   sel.innerHTML = LOCAIS_VISITA.map((l) => `<option value="${l}">${l}</option>`).join("");
 }
 
@@ -101,7 +101,6 @@ function initMapa() {
   const defaultLng = -43.2096;
 
   mapa = L.map("mapa_local").setView([defaultLat, defaultLng], 12);
-
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "© OpenStreetMap"
   }).addTo(mapa);
@@ -111,6 +110,7 @@ function initMapa() {
 
 function initCadastro() {
   const btn = document.getElementById("btn-cadastro-continuar");
+  if (!btn) return;
 
   btn.onclick = () => {
     APP_STATE.avaliador = document.getElementById("avaliador").value.trim();
@@ -157,20 +157,24 @@ async function selectRoteiro(tipo) {
   await initIndexedDB(tipo);
   hideSpinner();
 
-  document.getElementById("roteiro-atual-label").textContent =
-    tipo === "pge"
-      ? "Programa de Gerenciamento de Efluentes (PGE)"
-      : tipo === "geral"
-      ? "Formulário Geral"
-      : "Acidentes Ambientais";
+  const label = document.getElementById("roteiro-atual-label");
+  if (label) {
+    label.textContent =
+      tipo === "pge"
+        ? "Programa de Gerenciamento de Efluentes (PGE)"
+        : tipo === "geral"
+        ? "Formulário Geral"
+        : "Acidentes Ambientais";
+  }
 
   montarSecoes();
 
-  // sublocal só no PGE
   if (tipo === "pge") {
-    montarSublocais();
+    montarLocaisPGE();
+    document.getElementById("local_pge_box")?.classList.remove("hidden");
     document.getElementById("sublocal_box")?.classList.remove("hidden");
   } else {
+    document.getElementById("local_pge_box")?.classList.add("hidden");
     document.getElementById("sublocal_box")?.classList.add("hidden");
   }
 
@@ -179,22 +183,60 @@ async function selectRoteiro(tipo) {
 }
 
 // -------------------------------------------
-// SUBLOCAIS – APENAS PGE
+// PGE: LOCAL + SUBLOCAL
 // -------------------------------------------
-function montarSublocais() {
-  const sel = document.getElementById("sublocal_select");
+function montarLocaisPGE() {
+  const sel = document.getElementById("local_pge_select");
   const roteiro = APP_STATE.roteiro || [];
+  if (!sel) return;
 
-  const subs = [...new Set(roteiro.map((p) => p.Sublocal))]
+  const locais = [...new Set(roteiro.map((p) => p.Local))]
     .filter(Boolean)
     .sort();
 
   sel.innerHTML = `
+    <option value="">Selecione o local</option>
+    ${locais.map((l) => `<option value="${l}">${l}</option>`).join("")}
+  `;
+
+  sel.onchange = () => {
+    montarSublocaisPGE();
+    renderFormulario();
+  };
+
+  // reseta sublocal sempre que mudar local
+  const subSel = document.getElementById("sublocal_select");
+  if (subSel) {
+    subSel.innerHTML = `<option value="">Selecione o local primeiro</option>`;
+  }
+}
+
+function montarSublocaisPGE() {
+  const selLocal = document.getElementById("local_pge_select");
+  const selSub = document.getElementById("sublocal_select");
+  const roteiro = APP_STATE.roteiro || [];
+  if (!selLocal || !selSub) return;
+
+  const local = selLocal.value;
+  if (!local) {
+    selSub.innerHTML = `<option value="">Selecione o local primeiro</option>`;
+    return;
+  }
+
+  const subs = [
+    ...new Set(
+      roteiro.filter((p) => p.Local === local).map((p) => p.Sublocal)
+    )
+  ]
+    .filter(Boolean)
+    .sort();
+
+  selSub.innerHTML = `
     <option value="">Selecione o sublocal</option>
     ${subs.map((s) => `<option value="${s}">${s}</option>`).join("")}
   `;
 
-  sel.onchange = () => renderFormulario();
+  selSub.onchange = () => renderFormulario();
 }
 
 // -------------------------------------------
@@ -203,10 +245,11 @@ function montarSublocais() {
 function montarSecoes() {
   const sel = document.getElementById("secao_select");
   const roteiro = APP_STATE.roteiro || [];
+  if (!sel) return;
 
-  const secoes = [...new Set(roteiro.map((p) => p.Secao || p["Seção"] || p.secao))].filter(
-    Boolean
-  );
+  const secoes = [
+    ...new Set(roteiro.map((p) => p.Secao || p["Seção"] || p.secao))
+  ].filter(Boolean);
 
   sel.innerHTML = `
     <option value="">Todas as seções</option>
@@ -221,28 +264,41 @@ function montarSecoes() {
 // -------------------------------------------
 function renderFormulario(secaoFiltrada = null) {
   const container = document.getElementById("conteudo_formulario");
+  if (!container) return;
   container.innerHTML = "";
 
   const roteiro = APP_STATE.roteiro || [];
   let perguntas = roteiro;
 
-  // filtro por sublocal (PGE)
+  // Filtro PGE: LOCAL + SUBLOCAL
   if (APP_STATE.tipoRoteiro === "pge") {
-    const subsel = document.getElementById("sublocal_select");
-    const sub = subsel.value;
+    const selLocal = document.getElementById("local_pge_select");
+    const selSub = document.getElementById("sublocal_select");
+    const local = selLocal ? selLocal.value : "";
+    const sublocal = selSub ? selSub.value : "";
 
-    if (!sub) {
+    if (!local) {
       container.innerHTML = `
         <div class="bg-gray-100 text-gray-500 text-center py-10 rounded-xl shadow">
-          Selecione um sublocal para visualizar as perguntas.
+          Selecione o local do PGE.
         </div>`;
       return;
     }
 
-    perguntas = perguntas.filter((p) => p.Sublocal === sub);
+    perguntas = perguntas.filter((p) => p.Local === local);
+
+    if (!sublocal) {
+      container.innerHTML = `
+        <div class="bg-gray-100 text-gray-500 text-center py-10 rounded-xl shadow">
+          Selecione o sublocal.
+        </div>`;
+      return;
+    }
+
+    perguntas = perguntas.filter((p) => p.Sublocal === sublocal);
   }
 
-  // filtro por seção
+  // Filtro por Seção
   if (secaoFiltrada) {
     perguntas = perguntas.filter(
       (p) => (p.Secao || p["Seção"] || p.secao) === secaoFiltrada
@@ -279,8 +335,8 @@ function renderFormulario(secaoFiltrada = null) {
     lb.textContent = p.Pergunta;
     g.appendChild(lb);
 
-    const inp = criarInputParaPergunta(p);
-    g.appendChild(inp);
+    const inputEl = criarInputParaPergunta(p);
+    g.appendChild(inputEl);
 
     card.appendChild(g);
   });
@@ -300,7 +356,6 @@ function criarInputParaPergunta(p) {
   const wrapper = document.createElement("div");
   wrapper.className = "mt-2";
 
-  // util para pegar opções
   const opcoesStr =
     p.Opcoes || p["Opções"] || p.opcoes || p.opcao || p.opções || "";
   const opcoes = opcoesStr.split(";").map((o) => o.trim()).filter(Boolean);
@@ -381,7 +436,6 @@ function criarInputParaPergunta(p) {
 
     atualizarListaFotos(idPerg);
   } else {
-    // texto simples fallback
     const inp = document.createElement("input");
     inp.type = "text";
     inp.className = "w-full border rounded p-2 text-sm";
@@ -469,7 +523,6 @@ function stopCamera() {
     stream.getTracks().forEach((t) => t.stop());
     stream = null;
   }
-
   const video = document.getElementById("video");
   const placeholder = document.getElementById("camera-placeholder");
   const btnText = document.getElementById("camera-btn-text");
@@ -557,24 +610,27 @@ function baixarRelatorioCSV() {
 
   const headers = [
     "Secao",
+    "LocalRoteiro",
     "Sublocal",
     "Pergunta",
     "Resposta",
     "Avaliador",
     "Colaborador",
-    "Local",
+    "LocalCadastro",
     "DataVisita",
     "Roteiro"
   ];
 
   const linhas = APP_STATE.roteiro.map((p) => {
     const secao = p.Secao || p["Seção"] || p.secao || "";
+    const locRoteiro = p.Local || "";
     const sub = p.Sublocal || "";
     const perg = (p.Pergunta || "").replace(/"/g, '""');
     const resp = String(APP_STATE.respostas[p.id] || "").replace(/"/g, '""');
 
     return [
       `"${secao}"`,
+      `"${locRoteiro}"`,
       `"${sub}"`,
       `"${perg}"`,
       `"${resp}"`,
@@ -592,7 +648,7 @@ function baixarRelatorioCSV() {
 
   const a = document.createElement("a");
   const localSafe = (APP_STATE.local || "local").replace(/\s+/g, "_");
-  const dataSafe = (APP_STATE.data || "data");
+  const dataSafe = APP_STATE.data || "data";
   a.href = url;
   a.download = `relatorio_dados_${localSafe}_${dataSafe}_${APP_STATE.tipoRoteiro}.csv`;
   document.body.appendChild(a);
@@ -625,7 +681,7 @@ async function baixarFotosZip() {
 
     const conteudo = await zip.generateAsync({ type: "blob" });
     const localSafe = (APP_STATE.local || "local").replace(/\s+/g, "_");
-    const dataSafe = (APP_STATE.data || "data");
+    const dataSafe = APP_STATE.data || "data";
 
     saveAs(conteudo, `fotos_${localSafe}_${dataSafe}_${APP_STATE.tipoRoteiro}.zip`);
     showMessage("ZIP de fotos gerado com sucesso!", true);
@@ -638,35 +694,42 @@ async function baixarFotosZip() {
 }
 
 // -------------------------------------------
-// RECOMEÇAR
+// RECOMEÇAR – PRESERVA AVALIADOR/COLABORADOR/DATA
 // -------------------------------------------
 async function recomeçar() {
-  if (!confirm("Deseja realmente limpar tudo e recomeçar?")) return;
+  if (!confirm("Deseja finalizar este formulário e iniciar outro local?")) return;
 
-  APP_STATE.avaliador = "";
-  APP_STATE.local = "";
-  APP_STATE.colaborador = "";
-  APP_STATE.data = "";
+  // 1. Limpa dados do formulário
   APP_STATE.tipoRoteiro = null;
   APP_STATE.roteiro = null;
   APP_STATE.respostas = {};
   APP_STATE.fotos = {};
   APP_STATE.fotoIndex = {};
 
-  localStorage.removeItem("avaliador");
-  localStorage.removeItem("local");
-  localStorage.removeItem("colaborador");
-  localStorage.removeItem("data");
-
   await clearCurrentDB(); // indexedDB.js
 
-  document.getElementById("avaliador").value = "";
+  // 2. Preserva avaliador / colaborador / data
+  const avaliador = APP_STATE.avaliador;
+  const colaborador = APP_STATE.colaborador;
+  const data = APP_STATE.data;
+
+  // 3. Limpa LOCAL (novo local de visita)
+  APP_STATE.local = "";
+
+  // 4. Atualiza campos da tela
+  document.getElementById("avaliador").value = avaliador;
+  document.getElementById("colaborador").value = colaborador;
+  document.getElementById("data_visita").value = data;
   document.getElementById("local").value = "Selecionar Local...";
-  document.getElementById("colaborador").value = "";
-  document.getElementById("data_visita").value = "";
+
+  // 5. Atualiza localStorage
+  localStorage.setItem("avaliador", avaliador);
+  localStorage.setItem("colaborador", colaborador);
+  localStorage.setItem("data", data);
+  localStorage.removeItem("local");
 
   showScreen("screen-cadastro");
-  showMessage("Dados limpos. Recomece o formulário.", true);
+  showMessage("Formulário finalizado. Você pode iniciar um novo local.", true);
 }
 
 // -------------------------------------------
@@ -680,7 +743,7 @@ function initFormButtons() {
 
   if (btnSalvar) {
     btnSalvar.onclick = () => {
-      showMessage("Respostas já estão sendo salvas automaticamente (autosave).", true);
+      showMessage("As respostas são salvas automaticamente (autosave).", true);
     };
   }
   if (btnCSV) btnCSV.onclick = baixarRelatorioCSV;
@@ -698,5 +761,9 @@ function initApp() {
   initCadastro();
   initFormButtons();
 }
+
+// deixar funções globais para uso em onclick=""
+window.selectRoteiro = selectRoteiro;
+window.voltarParaCadastro = voltarParaCadastro;
 
 window.addEventListener("load", initApp);
