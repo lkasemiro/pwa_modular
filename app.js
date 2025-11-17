@@ -608,41 +608,45 @@ function baixarRelatorioCSV() {
     return;
   }
 
-  const headers = [
-    "Secao",
-    "LocalRoteiro",
-    "Sublocal",
-    "Pergunta",
-    "Resposta",
-    "Avaliador",
-    "Colaborador",
-    "LocalCadastro",
-    "DataVisita",
-    "Roteiro"
+  const cabecalho = [
+    "local_visita",
+    "data_visita",
+    "avaliador",
+    "colaborador",
+    "tipo_formulario",
+    "local_roteiro",
+    "sublocal",
+    "secao",
+    "id_pergunta",
+    "pergunta",
+    "resposta"
   ];
 
-  const linhas = APP_STATE.roteiro.map((p) => {
+  const linhas = APP_STATE.roteiro.map(p => {
+
     const secao = p.Secao || p["Seção"] || p.secao || "";
-    const locRoteiro = p.Local || "";
-    const sub = p.Sublocal || "";
-    const perg = (p.Pergunta || "").replace(/"/g, '""');
-    const resp = String(APP_STATE.respostas[p.id] || "").replace(/"/g, '""');
+    const localR = p.Local || "";
+    const sublocalR = p.Sublocal || "";
+    const id = p.id;
+    const pergunta = (p.Pergunta || "").replace(/"/g, '""');
+    const resposta = String(APP_STATE.respostas[p.id] || "").replace(/"/g, '""');
 
     return [
-      `"${secao}"`,
-      `"${locRoteiro}"`,
-      `"${sub}"`,
-      `"${perg}"`,
-      `"${resp}"`,
-      `"${APP_STATE.avaliador}"`,
-      `"${APP_STATE.colaborador}"`,
       `"${APP_STATE.local}"`,
       `"${APP_STATE.data}"`,
-      `"${APP_STATE.tipoRoteiro || ""}"`
+      `"${APP_STATE.avaliador}"`,
+      `"${APP_STATE.colaborador}"`,
+      `"${APP_STATE.tipoRoteiro}"`,
+      `"${localR}"`,
+      `"${sublocalR}"`,
+      `"${secao}"`,
+      `"${id}"`,
+      `"${pergunta}"`,
+      `"${resposta}"`
     ].join(",");
   });
 
-  const csv = headers.join(",") + "\n" + linhas.join("\n");
+  const csv = cabecalho.join(",") + "\n" + linhas.join("\n");
   const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
 
@@ -650,13 +654,13 @@ function baixarRelatorioCSV() {
   const localSafe = (APP_STATE.local || "local").replace(/\s+/g, "_");
   const dataSafe = APP_STATE.data || "data";
   a.href = url;
-  a.download = `relatorio_dados_${localSafe}_${dataSafe}_${APP_STATE.tipoRoteiro}.csv`;
+  a.download = `respostas_${localSafe}_${dataSafe}_${APP_STATE.tipoRoteiro}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
-  showMessage("CSV gerado com sucesso!", true);
+  showMessage("Exportação pronta! CSV compatível com R.", true);
 }
 
 // -------------------------------------------
