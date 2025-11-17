@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Formulário Técnico – Supervisão Ambiental</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Leaflet CSS (OBRIGATÓRIO antes do JS) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <!-- Estilo extra opcional -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Manifest + SW -->
+  <link rel="manifest" href="manifest.json">
+
+</head>
+
+<body class="bg-white">
+
+<!-- ========================================= -->
+<!-- TELA 1 — CADASTRO DA VISITA (PDF ORIGINAL) -->
+<!-- ========================================= -->
+
+<section id="screen-cadastro" class="max-w-5xl mx-auto p-4">
+
+  <!-- Logo -->
+  <div class="text-center mb-6">
+    <img src="icon.png" alt="Logo CEDAE" class="h-20 mx-auto mb-4">
+    <h1 class="text-xl font-semibold text-gray-700">
+      FORMULÁRIO DE VISITA TÉCNICA DE SUPERVISÃO AMBIENTAL
+    </h1>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+    <!-- Lado esquerdo: formulário de cadastro -->
+    <div class="bg-white p-6 rounded-xl shadow">
+
+      <!-- Avaliador -->
+      <label class="block font-medium text-gray-700 mb-1">
+        Nome do Avaliador:
+      </label>
+      <input id="avaliador"
+             type="text"
+             class="w-full p-3 border border-gray-300 rounded mb-4"
+             placeholder="Digite o nome">
+
+      <!-- Local -->
+      <label class="block font-medium text-gray-700 mb-1">
+        Local da Visita:
+      </label>
+      <select id="local"
+              class="w-full p-3 border border-gray-300 rounded mb-4">
+      </select>
+
+      <!-- Data -->
+      <label class="block font-medium text-gray-700 mb-1">
+        Data da Visita:
+      </label>
+      <input id="data_visita"
+             type="date"
+             class="w-full p-3 border border-gray-300 rounded mb-4">
+
+      <!-- Colaborador -->
+      <label class="block font-medium text-gray-700 mb-1">
+        Colaborador da GLA:
+      </label>
+      <input id="colaborador"
+             type="text"
+             class="w-full p-3 border border-gray-300 rounded mb-6"
+             placeholder="Digite o nome">
+
+      <button id="btn-cadastro-continuar"
+              class="w-full bg-blue-700 text-white py-3 rounded-lg font-semibold hover:bg-blue-800">
+        Salvar e Continuar
+      </button>
+    </div>
+
+    <!-- Lado direito: MAPA -->
+    <div id="mapa_local"
+     style="height: 450px; width: 100%;"
+     class="rounded-xl border border-gray-300">
+</div>
+
+
+</section>
+
+<!-- ========================================= -->
+<!-- TELA 2 — SELEÇÃO DO FORMULÁRIO -->
+<!-- ========================================= -->
+
+<section id="screen-select-roteiro"
+         class="max-w-xl mx-auto p-8 hidden">
+
+  <div class="text-center mb-6">
+    <img src="icon.png" alt="Logo" class="h-16 mx-auto mb-4">
+    <h2 class="text-xl font-semibold text-gray-700">
+      Que tipo de formulário você deseja preencher?
+    </h2>
+  </div>
+
+  <div class="grid gap-4">
+    <button onclick="selectRoteiro('geral')"
+            class="w-full border border-blue-600 text-blue-700 py-3 rounded-lg hover:bg-blue-50">
+      Formulário Geral
+    </button>
+
+    <button onclick="selectRoteiro('pge')"
+            class="w-full border border-green-600 text-green-700 py-3 rounded-lg hover:bg-green-50">
+      Programa de Gerenciamento de Efluentes — PGE
+    </button>
+
+    <button onclick="selectRoteiro('aa')"
+            class="w-full border border-amber-600 text-amber-700 py-3 rounded-lg hover:bg-amber-50">
+      Acidentes Ambientais
+    </button>
+  </div>
+
+  <button onclick="voltarParaCadastro()"
+          class="block mx-auto mt-6 text-sm text-gray-500 hover:text-gray-700 underline">
+    ← Voltar ao cadastro
+  </button>
+</section>
+
+<!-- ========================================= -->
+<!-- TELA 3 — FORMULÁRIO DINÂMICO -->
+<!-- ========================================= -->
+
+<section id="screen-formulario" class="max-w-4xl mx-auto p-4 hidden">
+
+  <div class="text-center mb-8">
+    <img src="icon.png" class="h-12 mx-auto mb-2">
+    <h3 class="text-xl font-semibold text-gray-700">
+      Relatório de Supervisão Ambiental
+    </h3>
+    <p id="roteiro-atual-label" class="text-sm text-gray-500"></p>
+  </div>
+  <!-- SELECTOR DE SUBLOCAL – APENAS PARA PGE -->
+  <div id="sublocal_box" class="max-w-xs mx-auto mb-6 hidden">
+   <label class="block font-medium text-gray-700 mb-1">Selecionar Sublocal:</label>
+   <select id="sublocal_select"
+          class="w-full p-3 border border-gray-300 rounded">
+   </select>
+  </div>
+
+  <!-- Seleção de seção -->
+   <!-- SELECTOR DE SUBLOCAL – APARECE SOMENTE NO PGE -->
+<div id="sublocal_box" class="max-w-xs mx-auto mb-6 hidden">
+  <label class="block font-medium text-gray-700 mb-1">Selecionar Sublocal:</label>
+  <select id="sublocal_select"
+          class="w-full p-3 border border-gray-300 rounded">
+  </select>
+</div>
+
+  <div class="max-w-xs mx-auto mb-8">
+    <label class="block font-medium text-gray-700 mb-1">Selecionar Seção:</label>
+    <select id="secao_select"
+            class="w-full p-3 border border-gray-300 rounded">
+    </select>
+  </div>
+
+  <!-- Conteúdo gerado pelo JS -->
+  <div id="conteudo_formulario" class="max-w-3xl mx-auto"></div>
+
+  <!-- Botões finais -->
+  <div class="max-w-xs mx-auto mt-10 space-y-4">
+    <button id="salvar_respostas"
+            class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700">
+      Salvar Respostas
+    </button>
+
+    <button id="baixar_relatorio_csv"
+            class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
+      Baixar CSV
+    </button>
+
+    <button id="baixar_fotos_zip"
+            class="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700">
+      Baixar Fotos
+    </button>
+
+    <button id="btn-recomecar"
+            class="w-full bg-gray-600 text-white py-3 rounded-lg hover:bg-gray-700">
+      Recomeçar
+    </button>
+  </div>
+
+</section>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="roteiros.js"></script>
+<script src="indexedDB.js"></script>
+<script src="app.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("./service-worker.js")
+        .then(reg => console.log("SW registrado:", reg.scope))
+        .catch(err => console.error("Erro ao registrar SW:", err));
+    });
+  }
+</script>
+
+</body>
+</html>
