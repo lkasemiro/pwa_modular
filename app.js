@@ -1,12 +1,12 @@
 // ===========================================
-// APP.JS – PWA MODULAR COMPLETO (FINAL)
+// APP.JS – PWA MODULAR PROGRESSIVO
+// Câmera em tela dedicada (modelo B)
 // ===========================================
 
 // -------------------------------------------
 // ESTADO GLOBAL
 // -------------------------------------------
 const LOCAIS_VISITA = [
-  "Selecionar Local...",
   "Rio D'Ouro",
   "São Pedro",
   "Tinguá - Barrelão",
@@ -24,33 +24,28 @@ const LOCAIS_VISITA = [
 
 const APP_STATE = {
   avaliador: "",
-  local: "",
   colaborador: "",
   data: "",
 
-  tipoRoteiro: null, // 'geral' | 'pge' | 'aa'
+  local_visita: "",
+  tipoRoteiro: null,  // 'geral' | 'pge' | 'aa'
   roteiro: null,
 
-  respostas: {},      // { idPergunta: valor }
-  fotos: {},          // { idPergunta: [fotoId,...] }
-  fotoIndex: {}       // { idPergunta: proximoNumero }
+  respostas: {},
+  fotos: {},
+  fotoIndex: {},
+
+  currentScreen: "cadastro"
 };
 
-let mapa = null;
 let stream = null;
 let currentPhotoInputId = null;
+let selectedLocal = "";
+let selectedForm = null;
 
 // -------------------------------------------
-// UI UTILITIES
+// UI / NAVEGAÇÃO
 // -------------------------------------------
-function showScreen(id) {
-  const telas = ["screen-cadastro", "screen-select-roteiro", "screen-formulario"];
-  telas.forEach((t) => {
-    const el = document.getElementById(t);
-    if (el) el.classList.toggle("hidden", t !== id);
-  });
-}
-
 function showMessage(msg, ok = false) {
   const box = document.getElementById("message-box");
   if (!box) {
@@ -61,51 +56,57 @@ function showMessage(msg, ok = false) {
   box.classList.remove("hidden");
   box.classList.toggle("bg-red-500", !ok);
   box.classList.toggle("bg-green-600", ok);
-  setTimeout(() => box.classList.add("hidden"), 3500);
+  setTimeout(() => box.classList.add("hidden"), 3000);
 }
 
 function showSpinner() {
-  document.getElementById("loading-spinner")?.classList.remove("hidden");
+  const sp = document.getElementById("loading-spinner");
+  if (sp) sp.classList.remove("hidden");
+}
+function hideSpinner() {
+  const sp = document.getElementById("loading-spinner");
+  if (sp) sp.classList.add("hidden");
 }
 
-function hideSpinner() {
-  document.getElementById("loading-spinner")?.classList.add("hidden");
+function atualizarHeaderInfo() {
+  const av = document.getElementById("info_avaliador");
+  const loc = document.getElementById("info_local_visita");
+  const dt = document.getElementById("info_data_visita");
+  if (av) av.textContent = APP_STATE.avaliador || "";
+  if (loc) loc.textContent = APP_STATE.local_visita || "";
+  if (dt) dt.textContent = APP_STATE.data || "";
 }
+
+function goTo(screen) {
+  APP_STATE.currentScreen = screen;
+  document.querySelectorAll(".screen").forEach(s => s.classList.add("hidden"));
+  const el = document.getElementById(`screen-${screen}`);
+  if (el) el.classList.remove("hidden");
+
+  // se saiu da tela de câmera, garante que não deixa stream aberto
+  if (screen !== "camera") {
+    stopCamera();
+  }
+
+  atualizarHeaderInfo();
+}
+
+window.goTo = goTo;
 
 // -------------------------------------------
-// CADASTRO INICIAL
+// CADASTRO
 // -------------------------------------------
 function carregarMetaDoLocalStorage() {
-  APP_STATE.avaliador = localStorage.getItem("avaliador") || "";
-  APP_STATE.local = localStorage.getItem("local") || "";
+  APP_STATE.avaliador   = localStorage.getItem("avaliador")   || "";
   APP_STATE.colaborador = localStorage.getItem("colaborador") || "";
-  APP_STATE.data = localStorage.getItem("data") || "";
+  APP_STATE.data        = localStorage.getItem("data")        || "";
 
-  document.getElementById("avaliador").value = APP_STATE.avaliador;
-  document.getElementById("local").value = APP_STATE.local;
-  document.getElementById("colaborador").value = APP_STATE.colaborador;
-  document.getElementById("data_visita").value = APP_STATE.data;
-}
-
-function initLocaisSelect() {
-  const sel = document.getElementById("local");
-  if (!sel) return;
-  sel.innerHTML = LOCAIS_VISITA.map((l) => `<option value="${l}">${l}</option>`).join("");
-}
-
-function initMapa() {
-  const div = document.getElementById("mapa_local");
-  if (!div) return;
-
-  const defaultLat = -22.9035;
-  const defaultLng = -43.2096;
-
-  mapa = L.map("mapa_local").setView([defaultLat, defaultLng], 12);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap"
-  }).addTo(mapa);
-
-  setTimeout(() => mapa.invalidateSize(), 250);
+  const av = document.getElementById("avaliador");
+  const co = document.getElementById("colaborador");
+  const dt = document.getElementById("data_visita");
+  if (av) av.value = APP_STATE.avaliador;
+  if (co) co.value = APP_STATE.colaborador;
+  if (dt) dt.value = APP_STATE.data;
 }
 
 function initCadastro() {
@@ -113,41 +114,142 @@ function initCadastro() {
   if (!btn) return;
 
   btn.onclick = () => {
-    APP_STATE.avaliador = document.getElementById("avaliador").value.trim();
-    APP_STATE.local = document.getElementById("local").value.trim();
-    APP_STATE.colaborador = document.getElementById("colaborador").value.trim();
-    APP_STATE.data = document.getElementById("data_visita").value.trim();
+    const av = document.getElementById("avaliador");
+    const co = document.getElementById("colaborador");
+    const dt = document.getElementById("data_visita");
 
-    if (
-      !APP_STATE.avaliador ||
-      !APP_STATE.local ||
-      APP_STATE.local === "Selecionar Local..." ||
-      !APP_STATE.colaborador ||
-      !APP_STATE.data
-    ) {
-      showMessage("Preencha todos os campos.");
+    APP_STATE.avaliador   = av ? av.value.trim() : "";
+    APP_STATE.colaborador = co ? co.value.trim() : "";
+    APP_STATE.data        = dt ? dt.value.trim() : "";
+
+    if (!APP_STATE.avaliador || !APP_STATE.colaborador || !APP_STATE.data) {
+      showMessage("Preencha avaliador, colaborador e data da visita.");
       return;
     }
 
     localStorage.setItem("avaliador", APP_STATE.avaliador);
-    localStorage.setItem("local", APP_STATE.local);
     localStorage.setItem("colaborador", APP_STATE.colaborador);
     localStorage.setItem("data", APP_STATE.data);
 
-    showMessage("Informações salvas!", true);
-    showScreen("screen-select-roteiro");
+    showMessage("Dados salvos. Agora selecione o local da visita.", true);
+    goTo("local");
   };
 }
 
 // -------------------------------------------
-// SELEÇÃO DO ROTEIRO
+// TELA: LOCAIS
 // -------------------------------------------
-function voltarParaCadastro() {
-  showScreen("screen-cadastro");
+function initLocaisScreen() {
+  const container = document.getElementById("lista_locais");
+  const btnCont = document.getElementById("btn-local-continuar");
+  if (!container || !btnCont) return;
+
+  container.innerHTML = "";
+
+  LOCAIS_VISITA.forEach(local => {
+    const wrap = document.createElement("div");
+    wrap.className = "w-full sm:w-1/2 lg:w-1/3 p-2";
+
+    const btn = document.createElement("button");
+    btn.className =
+      "w-full h-24 sm:h-28 bg-[#003366] text-white rounded-xl shadow-md " +
+      "flex items-center justify-center text-sm sm:text-base font-semibold " +
+      "hover:bg-[#0055A4] active:scale-95 transition text-center px-2";
+    btn.textContent = local;
+
+    btn.addEventListener("click", () => {
+      selectedLocal = local;
+      APP_STATE.local_visita = local;
+
+      document.querySelectorAll("[data-local-card]").forEach(el => {
+        el.classList.remove("ring-4", "ring-[#00A85A]");
+      });
+      wrap.classList.add("ring-4", "ring-[#00A85A]");
+
+      btnCont.disabled = false;
+    });
+
+    wrap.setAttribute("data-local-card", local);
+    wrap.appendChild(btn);
+    container.appendChild(wrap);
+  });
+
+  btnCont.disabled = !selectedLocal;
+  btnCont.onclick = () => {
+    if (!selectedLocal) {
+      showMessage("Selecione um local.", false);
+      return;
+    }
+    showMessage(`Local selecionado: ${selectedLocal}`, true);
+    goTo("form-select");
+  };
 }
 
-async function selectRoteiro(tipo) {
-  APP_STATE.tipoRoteiro = tipo;
+// -------------------------------------------
+// TELA: SELEÇÃO DE FORMULÁRIO
+// -------------------------------------------
+function initFormSelectScreen() {
+  const container = document.getElementById("lista_formularios");
+  const btnCont = document.getElementById("btn-form-select-continuar");
+  if (!container || !btnCont) return;
+
+  container.innerHTML = "";
+  selectedForm = null;
+
+  const formularios = [
+    { tipo: "geral", rotulo: "Formulário Geral" },
+    { tipo: "pge",   rotulo: "PGE – Efluentes" },
+    { tipo: "aa",    rotulo: "Acidentes Ambientais" }
+  ];
+
+  formularios.forEach(f => {
+    const wrap = document.createElement("div");
+    wrap.className = "w-full sm:w-1/2 lg:w-1/3 p-2";
+
+    const btn = document.createElement("button");
+    btn.className =
+      "w-full h-24 sm:h-28 bg-[#003366] text-white rounded-xl shadow-md " +
+      "flex items-center justify-center text-sm sm:text-base font-semibold " +
+      "hover:bg-[#0055A4] active:scale-95 transition text-center px-2";
+    btn.textContent = f.rotulo;
+
+    btn.addEventListener("click", () => {
+      selectedForm = f.tipo;
+      APP_STATE.tipoRoteiro = f.tipo;
+
+      document.querySelectorAll("[data-form-card]").forEach(el => {
+        el.classList.remove("ring-4", "ring-[#00A85A]");
+      });
+      wrap.classList.add("ring-4", "ring-[#00A85A]");
+
+      btnCont.disabled = false;
+    });
+
+    wrap.setAttribute("data-form-card", f.tipo);
+    wrap.appendChild(btn);
+    container.appendChild(wrap);
+  });
+
+  btnCont.disabled = !selectedForm;
+  btnCont.onclick = () => {
+    if (!selectedForm) {
+      showMessage("Selecione um formulário.", false);
+      return;
+    }
+    carregarRoteiroEIrParaFormulario();
+  };
+}
+
+// -------------------------------------------
+// CARREGAR ROTEIRO E IR PARA FORMULÁRIO
+// -------------------------------------------
+async function carregarRoteiroEIrParaFormulario() {
+  const tipo = APP_STATE.tipoRoteiro;
+  if (!tipo) {
+    showMessage("Tipo de formulário não definido.", false);
+    return;
+  }
+
   APP_STATE.roteiro = ROTEIROS[tipo];
   APP_STATE.respostas = {};
   APP_STATE.fotos = {};
@@ -160,26 +262,29 @@ async function selectRoteiro(tipo) {
   const label = document.getElementById("roteiro-atual-label");
   if (label) {
     label.textContent =
-      tipo === "pge"
-        ? "Programa de Gerenciamento de Efluentes (PGE)"
-        : tipo === "geral"
-        ? "Formulário Geral"
-        : "Acidentes Ambientais";
+      tipo === "pge" ? "Programa de Gerenciamento de Efluentes (PGE)" :
+      tipo === "geral" ? "Formulário Geral" :
+      "Acidentes Ambientais";
   }
 
   montarSecoes();
 
   if (tipo === "pge") {
     montarLocaisPGE();
-    document.getElementById("local_pge_box")?.classList.remove("hidden");
-    document.getElementById("sublocal_box")?.classList.remove("hidden");
+    const lbox = document.getElementById("local_pge_box");
+    const sbox = document.getElementById("sublocal_box");
+    if (lbox) lbox.classList.remove("hidden");
+    if (sbox) sbox.classList.remove("hidden");
   } else {
-    document.getElementById("local_pge_box")?.classList.add("hidden");
-    document.getElementById("sublocal_box")?.classList.add("hidden");
+    const lbox = document.getElementById("local_pge_box");
+    const sbox = document.getElementById("sublocal_box");
+    if (lbox) lbox.classList.add("hidden");
+    if (sbox) sbox.classList.add("hidden");
   }
 
   renderFormulario();
-  showScreen("screen-formulario");
+  atualizarHeaderInfo();
+  goTo("formulario");
 }
 
 // -------------------------------------------
@@ -190,13 +295,10 @@ function montarLocaisPGE() {
   const roteiro = APP_STATE.roteiro || [];
   if (!sel) return;
 
-  const locais = [...new Set(roteiro.map((p) => p.Local))]
-    .filter(Boolean)
-    .sort();
-
+  const locais = [...new Set(roteiro.map(p => p.Local))].filter(Boolean).sort();
   sel.innerHTML = `
     <option value="">Selecione o local</option>
-    ${locais.map((l) => `<option value="${l}">${l}</option>`).join("")}
+    ${locais.map(l => `<option value="${l}">${l}</option>`).join("")}
   `;
 
   sel.onchange = () => {
@@ -204,10 +306,10 @@ function montarLocaisPGE() {
     renderFormulario();
   };
 
-  // reseta sublocal sempre que mudar local
   const subSel = document.getElementById("sublocal_select");
   if (subSel) {
     subSel.innerHTML = `<option value="">Selecione o local primeiro</option>`;
+    subSel.onchange = () => renderFormulario();
   }
 }
 
@@ -223,20 +325,14 @@ function montarSublocaisPGE() {
     return;
   }
 
-  const subs = [
-    ...new Set(
-      roteiro.filter((p) => p.Local === local).map((p) => p.Sublocal)
-    )
-  ]
-    .filter(Boolean)
-    .sort();
+  const subs = [...new Set(
+    roteiro.filter(p => p.Local === local).map(p => p.Sublocal)
+  )].filter(Boolean).sort();
 
   selSub.innerHTML = `
     <option value="">Selecione o sublocal</option>
-    ${subs.map((s) => `<option value="${s}">${s}</option>`).join("")}
+    ${subs.map(s => `<option value="${s}">${s}</option>`).join("")}
   `;
-
-  selSub.onchange = () => renderFormulario();
 }
 
 // -------------------------------------------
@@ -247,15 +343,14 @@ function montarSecoes() {
   const roteiro = APP_STATE.roteiro || [];
   if (!sel) return;
 
-  const secoes = [
-    ...new Set(roteiro.map((p) => p.Secao || p["Seção"] || p.secao))
-  ].filter(Boolean);
+  const secoes = [...new Set(
+    roteiro.map(p => p.Secao || p["Seção"] || p.secao)
+  )].filter(Boolean);
 
   sel.innerHTML = `
     <option value="">Todas as seções</option>
-    ${secoes.map((s) => `<option value="${s}">${s}</option>`).join("")}
+    ${secoes.map(s => `<option value="${s}">${s}</option>`).join("")}
   `;
-
   sel.onchange = () => renderFormulario(sel.value || null);
 }
 
@@ -270,45 +365,41 @@ function renderFormulario(secaoFiltrada = null) {
   const roteiro = APP_STATE.roteiro || [];
   let perguntas = roteiro;
 
-  // Filtro PGE: LOCAL + SUBLOCAL
   if (APP_STATE.tipoRoteiro === "pge") {
     const selLocal = document.getElementById("local_pge_select");
     const selSub = document.getElementById("sublocal_select");
-    const local = selLocal ? selLocal.value : "";
-    const sublocal = selSub ? selSub.value : "";
+    const locR = selLocal ? selLocal.value : "";
+    const subR = selSub ? selSub.value : "";
 
-    if (!local) {
+    if (!locR) {
       container.innerHTML = `
         <div class="bg-gray-100 text-gray-500 text-center py-10 rounded-xl shadow">
           Selecione o local do PGE.
         </div>`;
       return;
     }
+    perguntas = perguntas.filter(p => p.Local === locR);
 
-    perguntas = perguntas.filter((p) => p.Local === local);
-
-    if (!sublocal) {
+    if (!subR) {
       container.innerHTML = `
         <div class="bg-gray-100 text-gray-500 text-center py-10 rounded-xl shadow">
           Selecione o sublocal.
         </div>`;
       return;
     }
-
-    perguntas = perguntas.filter((p) => p.Sublocal === sublocal);
+    perguntas = perguntas.filter(p => p.Sublocal === subR);
   }
 
-  // Filtro por Seção
   if (secaoFiltrada) {
-    perguntas = perguntas.filter(
-      (p) => (p.Secao || p["Seção"] || p.secao) === secaoFiltrada
+    perguntas = perguntas.filter(p =>
+      (p.Secao || p["Seção"] || p.secao) === secaoFiltrada
     );
   }
 
   if (!perguntas.length) {
     container.innerHTML = `
       <div class="bg-gray-100 text-gray-500 text-center py-10 rounded-xl shadow">
-        Nenhuma pergunta encontrada.
+        Nenhuma pergunta encontrada para esse filtro.
       </div>`;
     return;
   }
@@ -316,7 +407,7 @@ function renderFormulario(secaoFiltrada = null) {
   const card = document.createElement("div");
   card.className = "bg-white rounded-xl shadow p-4";
 
-  perguntas.forEach((p) => {
+  perguntas.forEach(p => {
     const id = p.id;
     const g = document.createElement("div");
     g.className = "form-group mb-6 pb-4 border-b";
@@ -358,10 +449,10 @@ function criarInputParaPergunta(p) {
 
   const opcoesStr =
     p.Opcoes || p["Opções"] || p.opcoes || p.opcao || p.opções || "";
-  const opcoes = opcoesStr.split(";").map((o) => o.trim()).filter(Boolean);
+  const opcoes = opcoesStr.split(";").map(o => o.trim()).filter(Boolean);
 
   if (tipo === "radio") {
-    opcoes.forEach((op) => {
+    opcoes.forEach(op => {
       const lbl = document.createElement("label");
       lbl.className = "inline-flex items-center mr-4 mb-1";
 
@@ -373,7 +464,6 @@ function criarInputParaPergunta(p) {
       if (valorSalvo === op) inp.checked = true;
 
       inp.addEventListener("change", () => autosave(idPerg, op));
-
       lbl.appendChild(inp);
       lbl.appendChild(document.createTextNode(op));
       wrapper.appendChild(lbl);
@@ -381,10 +471,10 @@ function criarInputParaPergunta(p) {
   } else if (tipo === "checkboxgroup") {
     const marcados = String(valorSalvo || "")
       .split(";")
-      .map((v) => v.trim())
+      .map(v => v.trim())
       .filter(Boolean);
 
-    opcoes.forEach((op) => {
+    opcoes.forEach(op => {
       const lbl = document.createElement("label");
       lbl.className = "block mb-1";
 
@@ -398,7 +488,7 @@ function criarInputParaPergunta(p) {
       inp.addEventListener("change", () => {
         const selecionados = [
           ...document.querySelectorAll(`input[name='${idPerg}']:checked`)
-        ].map((i) => i.value);
+        ].map(i => i.value);
         autosave(idPerg, selecionados.join(";"));
       });
 
@@ -448,24 +538,19 @@ function criarInputParaPergunta(p) {
 }
 
 // -------------------------------------------
-// AUTOSAVE – RESPOSTAS
+// AUTOSAVE + CONDICIONAL
 // -------------------------------------------
 function autosave(idPergunta, valor) {
   APP_STATE.respostas[idPergunta] = valor;
-  saveAnswerToDB(idPergunta, valor); // indexedDB.js
+  saveAnswerToDB(idPergunta, valor);
   applyConditionalLogic();
 }
 
-// -------------------------------------------
-// LÓGICA CONDICIONAL
-// -------------------------------------------
 function applyConditionalLogic() {
   const roteiro = APP_STATE.roteiro || [];
-  roteiro.forEach((p) => {
-    const cond =
-      p.Condicao || p["Condição"] || p.condicao || p.cond || "";
+  roteiro.forEach(p => {
+    const cond = p.Condicao || p["Condição"] || p.condicao || p.cond || "";
     const pai = p.Pai || p.pai || "";
-
     if (!cond || !pai) return;
 
     const groupEl = document.getElementById(`group_${p.id}`);
@@ -481,24 +566,19 @@ function applyConditionalLogic() {
 }
 
 // -------------------------------------------
-// CÂMERA E FOTOS
+// CÂMERA – TELA DEDICADA
 // -------------------------------------------
 function abrirCamera(idPergunta) {
   currentPhotoInputId = idPergunta;
-  const modal = document.getElementById("camera-modal");
-  if (!modal) {
-    showMessage("Modal de câmera não encontrado no HTML.", false);
-    return;
-  }
-  modal.classList.remove("hidden");
+  goTo("camera");
   startCamera();
 }
 
 async function startCamera() {
   const video = document.getElementById("video");
   const placeholder = document.getElementById("camera-placeholder");
-  const btnText = document.getElementById("camera-btn-text");
-  const captureBtn = document.getElementById("capture-photo");
+  const toggleBtn = document.getElementById("btn-camera-toggle");
+  const captureBtn = document.getElementById("btn-camera-capture");
 
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -506,51 +586,38 @@ async function startCamera() {
       audio: false
     });
   } catch (err) {
-    showMessage("Não foi possível acessar a câmera.", false);
     console.error(err);
+    showMessage("Não foi possível acessar a câmera. Verifique permissões.", false);
     return;
   }
 
-  video.srcObject = stream;
-  video.classList.remove("hidden");
-  placeholder.classList.add("hidden");
-  btnText.textContent = "Desligar Câmera";
-  captureBtn.disabled = false;
+  if (video) {
+    video.srcObject = stream;
+    video.classList.remove("hidden");
+  }
+  if (placeholder) placeholder.classList.add("hidden");
+  if (toggleBtn) toggleBtn.textContent = "Desligar Câmera";
+  if (captureBtn) captureBtn.disabled = false;
 }
 
 function stopCamera() {
   if (stream) {
-    stream.getTracks().forEach((t) => t.stop());
+    stream.getTracks().forEach(t => t.stop());
     stream = null;
   }
+
   const video = document.getElementById("video");
   const placeholder = document.getElementById("camera-placeholder");
-  const btnText = document.getElementById("camera-btn-text");
-  const captureBtn = document.getElementById("capture-photo");
+  const toggleBtn = document.getElementById("btn-camera-toggle");
+  const captureBtn = document.getElementById("btn-camera-capture");
 
   if (video) video.classList.add("hidden");
   if (placeholder) placeholder.classList.remove("hidden");
-  if (btnText) btnText.textContent = "Iniciar Câmera";
+  if (toggleBtn) toggleBtn.textContent = "Iniciar Câmera";
   if (captureBtn) captureBtn.disabled = true;
 }
 
-function closeCameraModal() {
-  const modal = document.getElementById("camera-modal");
-  if (modal) modal.classList.add("hidden");
-  stopCamera();
-}
-
-document.getElementById("start-camera")?.addEventListener("click", () => {
-  if (stream) {
-    stopCamera();
-  } else {
-    startCamera();
-  }
-});
-
-document.getElementById("close-modal")?.addEventListener("click", closeCameraModal);
-
-document.getElementById("capture-photo")?.addEventListener("click", () => {
+function capturarFoto() {
   const video = document.getElementById("video");
   const canvas = document.getElementById("canvas");
   if (!video || !canvas || !stream) {
@@ -570,11 +637,13 @@ document.getElementById("capture-photo")?.addEventListener("click", () => {
         return;
       }
       salvarFotoBlob(currentPhotoInputId, blob);
+      stopCamera();
+      goTo("formulario");
     },
     "image/jpeg",
     0.7
   );
-});
+}
 
 function salvarFotoBlob(idPergunta, blob) {
   if (!idPergunta) return;
@@ -583,8 +652,7 @@ function salvarFotoBlob(idPergunta, blob) {
   const idx = APP_STATE.fotoIndex[idPergunta]++;
   const fotoId = `${idPergunta}_foto_${String(idx).padStart(3, "0")}`;
 
-  savePhotoToDB(fotoId, blob, idPergunta); // indexedDB.js
-
+  savePhotoToDB(fotoId, blob, idPergunta);
   if (!APP_STATE.fotos[idPergunta]) APP_STATE.fotos[idPergunta] = [];
   APP_STATE.fotos[idPergunta].push(fotoId);
 
@@ -596,19 +664,43 @@ function atualizarListaFotos(idPergunta) {
   const box = document.getElementById(`fotos_${idPergunta}`);
   if (!box) return;
   const arr = APP_STATE.fotos[idPergunta] || [];
-  box.innerHTML = arr.map((id) => `<div>📸 ${id}</div>`).join("");
+  box.innerHTML = arr.map(id => `<div>📸 ${id}</div>`).join("");
+}
+
+function initCameraScreen() {
+  const toggleBtn = document.getElementById("btn-camera-toggle");
+  const captureBtn = document.getElementById("btn-camera-capture");
+  const voltarBtn  = document.getElementById("btn-camera-voltar");
+
+  if (toggleBtn) {
+    toggleBtn.onclick = () => {
+      if (stream) stopCamera();
+      else startCamera();
+    };
+  }
+
+  if (captureBtn) {
+    captureBtn.onclick = capturarFoto;
+  }
+
+  if (voltarBtn) {
+    voltarBtn.onclick = () => {
+      stopCamera();
+      goTo("formulario");
+    };
+  }
 }
 
 // -------------------------------------------
-// EXPORTAÇÃO – CSV
+// EXPORTAÇÃO – FORMULÁRIO ATUAL
 // -------------------------------------------
-function baixarRelatorioCSV() {
+function baixarRelatorioCSVAtual() {
   if (!APP_STATE.roteiro) {
-    showMessage("Nenhum roteiro selecionado.", false);
+    showMessage("Nenhum formulário carregado.", false);
     return;
   }
 
-  const cabecalho = [
+  const headers = [
     "local_visita",
     "data_visita",
     "avaliador",
@@ -623,35 +715,34 @@ function baixarRelatorioCSV() {
   ];
 
   const linhas = APP_STATE.roteiro.map(p => {
-
     const secao = p.Secao || p["Seção"] || p.secao || "";
-    const localR = p.Local || "";
-    const sublocalR = p.Sublocal || "";
-    const id = p.id;
-    const pergunta = (p.Pergunta || "").replace(/"/g, '""');
-    const resposta = String(APP_STATE.respostas[p.id] || "").replace(/"/g, '""');
+    const locR  = p.Local || "";
+    const sub   = p.Sublocal || "";
+    const id    = p.id;
+    const perg  = (p.Pergunta || "").replace(/"/g, '""');
+    const resp  = String(APP_STATE.respostas[p.id] || "").replace(/"/g, '""');
 
     return [
-      `"${APP_STATE.local}"`,
+      `"${APP_STATE.local_visita}"`,
       `"${APP_STATE.data}"`,
       `"${APP_STATE.avaliador}"`,
       `"${APP_STATE.colaborador}"`,
       `"${APP_STATE.tipoRoteiro}"`,
-      `"${localR}"`,
-      `"${sublocalR}"`,
+      `"${locR}"`,
+      `"${sub}"`,
       `"${secao}"`,
       `"${id}"`,
-      `"${pergunta}"`,
-      `"${resposta}"`
+      `"${perg}"`,
+      `"${resp}"`
     ].join(",");
   });
 
-  const csv = cabecalho.join(",") + "\n" + linhas.join("\n");
+  const csv = headers.join(",") + "\n" + linhas.join("\n");
   const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
-  const localSafe = (APP_STATE.local || "local").replace(/\s+/g, "_");
+  const localSafe = (APP_STATE.local_visita || "local").replace(/\s+/g, "_");
   const dataSafe = APP_STATE.data || "data";
   a.href = url;
   a.download = `respostas_${localSafe}_${dataSafe}_${APP_STATE.tipoRoteiro}.csv`;
@@ -660,35 +751,31 @@ function baixarRelatorioCSV() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
-  showMessage("Exportação pronta! CSV compatível com R.", true);
+  showMessage("CSV gerado para o formulário atual.", true);
 }
 
-// -------------------------------------------
-// EXPORTAÇÃO – ZIP DE FOTOS
-// -------------------------------------------
-async function baixarFotosZip() {
+async function baixarFotosZipAtual() {
   try {
     showSpinner();
-    const fotos = await getAllPhotosFromDB(); // [{fotoId, blob, idPergunta}, ...]
+    const fotos = await getAllPhotosFromDB();
     if (!fotos || !fotos.length) {
-      showMessage("Não há fotos salvas neste roteiro.", false);
+      showMessage("Não há fotos salvas neste formulário.", false);
       return;
     }
 
     const zip = new JSZip();
     const pasta = zip.folder("fotos");
 
-    fotos.forEach((f) => {
+    fotos.forEach(f => {
       const nome = `FOTO_${f.fotoId}.jpeg`;
       pasta.file(nome, f.blob);
     });
 
     const conteudo = await zip.generateAsync({ type: "blob" });
-    const localSafe = (APP_STATE.local || "local").replace(/\s+/g, "_");
+    const localSafe = (APP_STATE.local_visita || "local").replace(/\s+/g, "_");
     const dataSafe = APP_STATE.data || "data";
-
     saveAs(conteudo, `fotos_${localSafe}_${dataSafe}_${APP_STATE.tipoRoteiro}.zip`);
-    showMessage("ZIP de fotos gerado com sucesso!", true);
+    showMessage("ZIP de fotos do formulário atual gerado.", true);
   } catch (e) {
     console.error(e);
     showMessage("Erro ao gerar ZIP de fotos.", false);
@@ -698,60 +785,37 @@ async function baixarFotosZip() {
 }
 
 // -------------------------------------------
-// RECOMEÇAR – PRESERVA AVALIADOR/COLABORADOR/DATA
+// RECOMEÇAR / CONCLUIR VISITA
 // -------------------------------------------
 async function recomeçar() {
-  if (!confirm("Deseja finalizar este formulário e iniciar outro local?")) return;
+  if (!confirm("Deseja realmente concluir esta visita e iniciar outro local?")) return;
 
-  // 1. Limpa dados do formulário
   APP_STATE.tipoRoteiro = null;
   APP_STATE.roteiro = null;
   APP_STATE.respostas = {};
   APP_STATE.fotos = {};
   APP_STATE.fotoIndex = {};
+  APP_STATE.local_visita = "";
+  selectedLocal = "";
+  selectedForm = null;
 
-  await clearCurrentDB(); // indexedDB.js
+  await clearCurrentDB();
 
-  // 2. Preserva avaliador / colaborador / data
-  const avaliador = APP_STATE.avaliador;
-  const colaborador = APP_STATE.colaborador;
-  const data = APP_STATE.data;
-
-  // 3. Limpa LOCAL (novo local de visita)
-  APP_STATE.local = "";
-
-  // 4. Atualiza campos da tela
-  document.getElementById("avaliador").value = avaliador;
-  document.getElementById("colaborador").value = colaborador;
-  document.getElementById("data_visita").value = data;
-  document.getElementById("local").value = "Selecionar Local...";
-
-  // 5. Atualiza localStorage
-  localStorage.setItem("avaliador", avaliador);
-  localStorage.setItem("colaborador", colaborador);
-  localStorage.setItem("data", data);
-  localStorage.removeItem("local");
-
-  showScreen("screen-cadastro");
-  showMessage("Formulário finalizado. Você pode iniciar um novo local.", true);
+  showMessage("Visita concluída. Selecione um novo local.", true);
+  initLocaisScreen();
+  goTo("local");
 }
 
 // -------------------------------------------
-// BOTÕES DA TELA DE FORMULÁRIO
+// BOTÕES TELA FINAL
 // -------------------------------------------
-function initFormButtons() {
-  const btnSalvar = document.getElementById("salvar_respostas");
-  const btnCSV = document.getElementById("baixar_relatorio_csv");
-  const btnZIP = document.getElementById("baixar_fotos_zip");
+function initFinalButtons() {
+  const btnCSV = document.getElementById("btn-exportar-csv-atual");
+  const btnFotos = document.getElementById("btn-exportar-fotos-atual");
   const btnRecomecar = document.getElementById("btn-recomecar");
 
-  if (btnSalvar) {
-    btnSalvar.onclick = () => {
-      showMessage("As respostas são salvas automaticamente (autosave).", true);
-    };
-  }
-  if (btnCSV) btnCSV.onclick = baixarRelatorioCSV;
-  if (btnZIP) btnZIP.onclick = baixarFotosZip;
+  if (btnCSV) btnCSV.onclick = baixarRelatorioCSVAtual;
+  if (btnFotos) btnFotos.onclick = baixarFotosZipAtual;
   if (btnRecomecar) btnRecomecar.onclick = recomeçar;
 }
 
@@ -759,15 +823,14 @@ function initFormButtons() {
 // INIT GERAL
 // -------------------------------------------
 function initApp() {
-  initLocaisSelect();
   carregarMetaDoLocalStorage();
-  initMapa();
   initCadastro();
-  initFormButtons();
-}
+  initLocaisScreen();
+  initFormSelectScreen();
+  initCameraScreen();
+  initFinalButtons();
 
-// deixar funções globais para uso em onclick=""
-window.selectRoteiro = selectRoteiro;
-window.voltarParaCadastro = voltarParaCadastro;
+  goTo("cadastro");
+}
 
 window.addEventListener("load", initApp);
