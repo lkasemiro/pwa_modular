@@ -1,42 +1,79 @@
+/* ============================================================
+   STYLE.CSS – Estilos complementares do PWA de Supervisão Ambiental
+   ============================================================ */
+
+/* Ajuste para o body */
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: #ffffff;
+  -webkit-tap-highlight-color: transparent;
+  font-family: Arial, sans-serif;
 }
 
-/* Cores CEDAE */
-.text-cedae-blue {
-  color: #003366;
-}
-.bg-cedae-blue {
-  background-color: #003366;
-}
-.bg-cedae-blue-light {
-  background-color: #0055A4;
-}
-.text-cedae-cyan {
-  color: #0095DA;
-}
-.border-cedae-blue {
-  border-color: #003366;
+/* Ajuste fino para contêineres */
+.section-card {
+  border-radius: 16px;
 }
 
 /* Botões padrão */
-.btn-primary {
-  @apply bg-cedae-blue text-white font-semibold px-5 py-2 rounded-lg text-sm sm:text-base transition;
-}
-.btn-primary:hover {
-  background-color: #0055A4;
-}
-.btn-neutral {
-  @apply bg-gray-200 text-gray-800 font-medium px-4 py-2 rounded-lg text-sm;
-}
-.btn-neutral:hover {
-  background-color: #e5e7eb;
+button.btn {
+  transition: 0.15s ease;
 }
 
-/* Card-button (exportações) */
-.card-button {
-  @apply w-full h-24 bg-cedae-blue text-white rounded-xl shadow-md flex items-center justify-center text-sm sm:text-base font-semibold text-center px-2;
+button.btn:hover {
+  transform: translateY(-2px);
 }
-.card-button:hover {
-  background-color: #0055A4;
+
+/* Input padrão */
+input[type="text"],
+input[type="number"],
+textarea,
+select {
+  outline: none;
+}
+
+/* Tornar mais suave a borda quando o Tailwind falhar offline */
+input, textarea, select {
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+/* Cartão de imagem de apoio */
+img.support-img {
+  max-height: 240px;
+  border-radius: 12px;
+  border: 1px solid #ddd;
+}
+
+/* Layout para listagem de fotos */
+.foto-lista-item {
+  padding: 4px 8px;
+  background: #f8f8f8;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  font-size: 12px;
+}
+
+/* Modal da câmera */
+#camera-modal {
+  backdrop-filter: blur(2px);
+}
+
+#camera-placeholder {
+  color: #666;
+  font-size: 14px;
+}
+
+/* Spinner */
+#loading-spinner div {
+  border-color: #0c4a6e;
+}
+
+/* Mensagem superior */
+#message-box {
+  transition: opacity 0.4s ease-in-out;
+}
+
+/* Seções escondidas por lógica condicional */
+.hidden-by-condition {
+  display: none !important;
 }
