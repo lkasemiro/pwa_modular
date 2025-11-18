@@ -1,116 +1,82 @@
-// indexedDB.js – Banco de dados modular para Geral, PGE e AA
+// indexedDB.js – implementação simples para o PWA
 
-// ===============================
-// CONFIGURAÇÃO DOS BANCOS
-// ===============================
-// Cada módulo terá seu próprio DB:
-// DB_GERAL, DB_PGE, DB_AA
-// Cada DB terá stores:
-// - Respostas
-// - Fotos
-// - Meta (opcional no futuro)
+let dbPromise = null;
 
-let CURRENT_DB = null;
-let CURRENT_DB_NAME = null;
-let CURRENT_DB_VERSION = 1;
+function openDB() {
+  if (dbPromise) return dbPromise;
 
-// ===============================
-// FUNÇÃO PRINCIPAL: initIndexedDB(tipo)
-// ===============================
-function initIndexedDB(tipoRoteiro) {
-  return new Promise((resolve, reject) => {
-    const map = {
-      geral: "DB_GERAL",
-      pge: "DB_PGE",
-      aa: "DB_AA"
-    };
+  dbPromise = new Promise((resolve, reject) => {
+    const request = indexedDB.open("cedae_pwa_db", 1);
 
-    CURRENT_DB_NAME = map[tipoRoteiro];
-    if (!CURRENT_DB_NAME) return reject("Tipo de roteiro inválido");
-
-    const request = indexedDB.open(CURRENT_DB_NAME, CURRENT_DB_VERSION);
-
-    request.onerror = e => reject("Falha ao abrir o banco: " + e.target.error);
-
-    request.onupgradeneeded = e => {
-      const db = e.target.result;
-
-      if (!db.objectStoreNames.contains("Respostas")) {
-        db.createObjectStore("Respostas", { keyPath: "idPergunta" });
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains("respostas")) {
+        db.createObjectStore("respostas", { keyPath: "idPergunta" });
       }
-
-      if (!db.objectStoreNames.contains("Fotos")) {
-        db.createObjectStore("Fotos", { keyPath: "fotoId" });
+      if (!db.objectStoreNames.contains("fotos")) {
+        db.createObjectStore("fotos", { keyPath: "fotoId" });
       }
     };
 
-    request.onsuccess = e => {
-      CURRENT_DB = e.target.result;
-      resolve();
-    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
   });
+
+  return dbPromise;
 }
 
-// ===============================
-// STORE HELPERS
-// ===============================
-function getStore(storeName, mode = "readwrite") {
-  const tx = CURRENT_DB.transaction([storeName], mode);
-  return tx.objectStore(storeName);
+async function initIndexedDB(tipo) {
+  // tipo não é usado por enquanto, mas pode ser no futuro
+  await openDB();
 }
 
-// ===============================
-// SALVAR RESPOSTA
-// ===============================
-function saveAnswerToDB(idPergunta, valor) {
-  if (!CURRENT_DB) return;
-  const store = getStore("Respostas");
-  store.put({ idPergunta, valor });
-}
-
-// ===============================
-// SALVAR FOTO (BLOB)
-// ===============================
-function savePhotoToDB(fotoId, blob, idPergunta) {
-  if (!CURRENT_DB) return;
-  const store = getStore("Fotos");
-  store.put({ fotoId, blob, idPergunta });
-}
-
-// ===============================
-// LISTAR TODAS AS FOTOS DO DB
-// ===============================
-function getAllPhotosFromDB() {
+// --------------------- RESPOSTAS
+async function saveAnswerToDB(idPergunta, valor) {
+  const db = await openDB();
   return new Promise((resolve, reject) => {
-    const store = getStore("Fotos", "readonly");
-    const request = store.getAll();
+    const tx = db.transaction("respostas", "readwrite");
+    const store = tx.objectStore("respostas");
+    store.put({ idPergunta, valor });
 
-    request.onerror = e => reject("Erro ao carregar fotos: " + e.target.error);
-
-    request.onsuccess = e => resolve(request.result || []);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
   });
 }
 
-// ===============================
-// LIMPAR O BANCO DO ROTEIRO ATUAL
-// ===============================
-function clearCurrentDB() {
+// --------------------- FOTOS
+async function savePhotoToDB(fotoId, blob, idPergunta) {
+  const db = await openDB();
   return new Promise((resolve, reject) => {
-    if (!CURRENT_DB_NAME) return resolve();
+    const tx = db.transaction("fotos", "readwrite");
+    const store = tx.objectStore("fotos");
+    store.put({ fotoId, blob, idPergunta });
 
-    const req = indexedDB.deleteDatabase(CURRENT_DB_NAME);
-
-    req.onerror = e => reject("Erro ao limpar DB: " + e.target.error);
-
-    req.onsuccess = e => resolve();
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
   });
 }
 
-// ===============================
-// EXPORTS OPCIONAIS
-// ===============================
-// window.initIndexedDB = initIndexedDB;
-// window.saveAnswerToDB = saveAnswerToDB;
-// window.savePhotoToDB = savePhotoToDB;
-// window.getAllPhotosFromDB = getAllPhotosFromDB;
-// window.clearCurrentDB = clearCurrentDB;
+async function getAllPhotosFromDB() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("fotos", "readonly");
+    const store = tx.objectStore("fotos");
+    const req = store.getAll();
+
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// limpa tudo para a próxima visita
+async function clearCurrentDB() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(["respostas", "fotos"], "readwrite");
+    tx.objectStore("respostas").clear();
+    tx.objectStore("fotos").clear();
+
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
+}
