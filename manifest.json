@@ -1,14 +1,13 @@
 {
-  "name": "Supervisão Ambiental - CEDAE",
-  "short_name": "Supervisão CEDAE",
-  "description": "Aplicativo técnico-institucional para coleta offline de dados ambientais, com suporte a PGE, Acidentes Ambientais e Formulário Geral.",
-  "start_url": "./index.html",
-  "scope": "./",
+  "name": "CEDAE – Supervisão Ambiental",
+  "short_name": "Supervisão Ambiental",
+  "description": "Aplicativo técnico para registro de visitas de supervisão ambiental com suporte offline.",
+  "start_url": "/pwa_modular/index.html",
+  "scope": "/pwa_modular/",
   "display": "standalone",
-  "orientation": "portrait",
-  "theme_color": "#0050A0",
-  "background_color": "#FFFFFF",
-
+  "background_color": "#ffffff",
+  "theme_color": "#003366",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "icon-192.png",
@@ -19,13 +18,6 @@
       "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
-    },
-    {
-      "src": "icon-1024.png",
-      "sizes": "1024x1024",
-      "type": "image/png"
     }
-  ],
-
-  "prefer_related_applications": false
+  ]
 }
