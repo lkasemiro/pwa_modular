@@ -771,5 +771,3 @@ window.selectRoteiro = selectRoteiro;
 window.voltarParaCadastro = voltarParaCadastro;
 
 window.addEventListener("load", initApp);
-
-
