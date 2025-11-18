@@ -1,11 +1,8 @@
 // ===========================================
 // APP.JS – PWA MODULAR PROGRESSIVO
-// Câmera em tela dedicada (modelo B)
+// Câmera em tela dedicada
 // ===========================================
 
-// -------------------------------------------
-// ESTADO GLOBAL
-// -------------------------------------------
 const LOCAIS_VISITA = [
   "Rio D'Ouro",
   "São Pedro",
@@ -28,7 +25,7 @@ const APP_STATE = {
   data: "",
 
   local_visita: "",
-  tipoRoteiro: null,  // 'geral' | 'pge' | 'aa'
+  tipoRoteiro: null,
   roteiro: null,
 
   respostas: {},
@@ -43,9 +40,9 @@ let currentPhotoInputId = null;
 let selectedLocal = "";
 let selectedForm = null;
 
-// -------------------------------------------
-// UI / NAVEGAÇÃO
-// -------------------------------------------
+// ------------------------------
+// UI BASE
+// ------------------------------
 function showMessage(msg, ok = false) {
   const box = document.getElementById("message-box");
   if (!box) {
@@ -83,19 +80,17 @@ function goTo(screen) {
   const el = document.getElementById(`screen-${screen}`);
   if (el) el.classList.remove("hidden");
 
-  // se saiu da tela de câmera, garante que não deixa stream aberto
   if (screen !== "camera") {
     stopCamera();
   }
 
   atualizarHeaderInfo();
 }
-
 window.goTo = goTo;
 
-// -------------------------------------------
+// ------------------------------
 // CADASTRO
-// -------------------------------------------
+// ------------------------------
 function carregarMetaDoLocalStorage() {
   APP_STATE.avaliador   = localStorage.getItem("avaliador")   || "";
   APP_STATE.colaborador = localStorage.getItem("colaborador") || "";
@@ -136,9 +131,9 @@ function initCadastro() {
   };
 }
 
-// -------------------------------------------
-// TELA: LOCAIS
-// -------------------------------------------
+// ------------------------------
+// TELA LOCAIS
+// ------------------------------
 function initLocaisScreen() {
   const container = document.getElementById("lista_locais");
   const btnCont = document.getElementById("btn-local-continuar");
@@ -185,9 +180,9 @@ function initLocaisScreen() {
   };
 }
 
-// -------------------------------------------
-// TELA: SELEÇÃO DE FORMULÁRIO
-// -------------------------------------------
+// ------------------------------
+// TELA SELEÇÃO FORMULÁRIO
+// ------------------------------
 function initFormSelectScreen() {
   const container = document.getElementById("lista_formularios");
   const btnCont = document.getElementById("btn-form-select-continuar");
@@ -240,9 +235,9 @@ function initFormSelectScreen() {
   };
 }
 
-// -------------------------------------------
-// CARREGAR ROTEIRO E IR PARA FORMULÁRIO
-// -------------------------------------------
+// ------------------------------
+// CARREGAR ROTEIRO
+// ------------------------------
 async function carregarRoteiroEIrParaFormulario() {
   const tipo = APP_STATE.tipoRoteiro;
   if (!tipo) {
@@ -271,15 +266,11 @@ async function carregarRoteiroEIrParaFormulario() {
 
   if (tipo === "pge") {
     montarLocaisPGE();
-    const lbox = document.getElementById("local_pge_box");
-    const sbox = document.getElementById("sublocal_box");
-    if (lbox) lbox.classList.remove("hidden");
-    if (sbox) sbox.classList.remove("hidden");
+    document.getElementById("local_pge_box")?.classList.remove("hidden");
+    document.getElementById("sublocal_box")?.classList.remove("hidden");
   } else {
-    const lbox = document.getElementById("local_pge_box");
-    const sbox = document.getElementById("sublocal_box");
-    if (lbox) lbox.classList.add("hidden");
-    if (sbox) sbox.classList.add("hidden");
+    document.getElementById("local_pge_box")?.classList.add("hidden");
+    document.getElementById("sublocal_box")?.classList.add("hidden");
   }
 
   renderFormulario();
@@ -287,9 +278,9 @@ async function carregarRoteiroEIrParaFormulario() {
   goTo("formulario");
 }
 
-// -------------------------------------------
-// PGE: LOCAL + SUBLOCAL
-// -------------------------------------------
+// ------------------------------
+// PGE: local + sublocal
+// ------------------------------
 function montarLocaisPGE() {
   const sel = document.getElementById("local_pge_select");
   const roteiro = APP_STATE.roteiro || [];
@@ -335,9 +326,9 @@ function montarSublocaisPGE() {
   `;
 }
 
-// -------------------------------------------
+// ------------------------------
 // SEÇÕES
-// -------------------------------------------
+// ------------------------------
 function montarSecoes() {
   const sel = document.getElementById("secao_select");
   const roteiro = APP_STATE.roteiro || [];
@@ -354,9 +345,9 @@ function montarSecoes() {
   sel.onchange = () => renderFormulario(sel.value || null);
 }
 
-// -------------------------------------------
-// RENDERIZAÇÃO DO FORMULÁRIO
-// -------------------------------------------
+// ------------------------------
+// FORMULÁRIO
+// ------------------------------
 function renderFormulario(secaoFiltrada = null) {
   const container = document.getElementById("conteudo_formulario");
   if (!container) return;
@@ -436,9 +427,6 @@ function renderFormulario(secaoFiltrada = null) {
   applyConditionalLogic();
 }
 
-// -------------------------------------------
-// INPUTS
-// -------------------------------------------
 function criarInputParaPergunta(p) {
   const tipoRaw = p.TipoInput || p.Tipoinput || p.tipoinput || "";
   const tipo = tipoRaw.toLowerCase();
@@ -537,9 +525,9 @@ function criarInputParaPergunta(p) {
   return wrapper;
 }
 
-// -------------------------------------------
+// ------------------------------
 // AUTOSAVE + CONDICIONAL
-// -------------------------------------------
+// ------------------------------
 function autosave(idPergunta, valor) {
   APP_STATE.respostas[idPergunta] = valor;
   saveAnswerToDB(idPergunta, valor);
@@ -565,9 +553,9 @@ function applyConditionalLogic() {
   });
 }
 
-// -------------------------------------------
-// CÂMERA – TELA DEDICADA
-// -------------------------------------------
+// ------------------------------
+// CÂMERA – tela dedicada
+// ------------------------------
 function abrirCamera(idPergunta) {
   currentPhotoInputId = idPergunta;
   goTo("camera");
@@ -678,11 +666,7 @@ function initCameraScreen() {
       else startCamera();
     };
   }
-
-  if (captureBtn) {
-    captureBtn.onclick = capturarFoto;
-  }
-
+  if (captureBtn) captureBtn.onclick = capturarFoto;
   if (voltarBtn) {
     voltarBtn.onclick = () => {
       stopCamera();
@@ -691,9 +675,9 @@ function initCameraScreen() {
   }
 }
 
-// -------------------------------------------
-// EXPORTAÇÃO – FORMULÁRIO ATUAL
-// -------------------------------------------
+// ------------------------------
+// EXPORTAÇÃO
+// ------------------------------
 function baixarRelatorioCSVAtual() {
   if (!APP_STATE.roteiro) {
     showMessage("Nenhum formulário carregado.", false);
@@ -743,7 +727,7 @@ function baixarRelatorioCSVAtual() {
 
   const a = document.createElement("a");
   const localSafe = (APP_STATE.local_visita || "local").replace(/\s+/g, "_");
-  const dataSafe = APP_STATE.data || "data";
+  const dataSafe  = APP_STATE.data || "data";
   a.href = url;
   a.download = `respostas_${localSafe}_${dataSafe}_${APP_STATE.tipoRoteiro}.csv`;
   document.body.appendChild(a);
@@ -773,7 +757,7 @@ async function baixarFotosZipAtual() {
 
     const conteudo = await zip.generateAsync({ type: "blob" });
     const localSafe = (APP_STATE.local_visita || "local").replace(/\s+/g, "_");
-    const dataSafe = APP_STATE.data || "data";
+    const dataSafe  = APP_STATE.data || "data";
     saveAs(conteudo, `fotos_${localSafe}_${dataSafe}_${APP_STATE.tipoRoteiro}.zip`);
     showMessage("ZIP de fotos do formulário atual gerado.", true);
   } catch (e) {
@@ -784,9 +768,9 @@ async function baixarFotosZipAtual() {
   }
 }
 
-// -------------------------------------------
-// RECOMEÇAR / CONCLUIR VISITA
-// -------------------------------------------
+// ------------------------------
+// RECOMEÇAR
+// ------------------------------
 async function recomeçar() {
   if (!confirm("Deseja realmente concluir esta visita e iniciar outro local?")) return;
 
@@ -806,22 +790,15 @@ async function recomeçar() {
   goTo("local");
 }
 
-// -------------------------------------------
-// BOTÕES TELA FINAL
-// -------------------------------------------
 function initFinalButtons() {
-  const btnCSV = document.getElementById("btn-exportar-csv-atual");
-  const btnFotos = document.getElementById("btn-exportar-fotos-atual");
-  const btnRecomecar = document.getElementById("btn-recomecar");
-
-  if (btnCSV) btnCSV.onclick = baixarRelatorioCSVAtual;
-  if (btnFotos) btnFotos.onclick = baixarFotosZipAtual;
-  if (btnRecomecar) btnRecomecar.onclick = recomeçar;
+  document.getElementById("btn-exportar-csv-atual")?.addEventListener("click", baixarRelatorioCSVAtual);
+  document.getElementById("btn-exportar-fotos-atual")?.addEventListener("click", baixarFotosZipAtual);
+  document.getElementById("btn-recomecar")?.addEventListener("click", recomeçar);
 }
 
-// -------------------------------------------
-// INIT GERAL
-// -------------------------------------------
+// ------------------------------
+// INIT
+// ------------------------------
 function initApp() {
   carregarMetaDoLocalStorage();
   initCadastro();
@@ -829,8 +806,8 @@ function initApp() {
   initFormSelectScreen();
   initCameraScreen();
   initFinalButtons();
-
   goTo("cadastro");
 }
 
 window.addEventListener("load", initApp);
+
