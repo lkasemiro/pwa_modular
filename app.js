@@ -21,6 +21,7 @@ const LOCAIS_VISITA = [
   "Xerém III - Plano",
   "Xerém III - Registro"
 ];
+
 const APP_STATE = {
   avaliador: "",
   local: "",
@@ -30,24 +31,55 @@ const APP_STATE = {
   tipoRoteiro: null, // 'geral' | 'pge' | 'aa'
   roteiro: null,
 
-  respostas: {},      // { idPergunta: valor }
-  fotos: {},          // { idPergunta: [fotoId,...] }
-  fotoIndex: {}       // { idPergunta: proximoNumero }
+  respostas: {},   // { idPergunta: valor }
+  fotos: {},       // { idPergunta: [fotoId,...] }
+  fotoIndex: {}    // { idPergunta: proximoNumero }
 };
+
 let mapa = null;
 let stream = null;
-let currentPhotoInputId = null; 
+let currentPhotoInputId = null;
+
+// URLs criadas para miniaturas do topo (para revogar depois)
+let topPhotoUrls = [];
 
 // -------------------------------------------
-// UI UTILITIES
+// UI UTILITIES / NAVEGAÇÃO ENTRE TELAS
 // -------------------------------------------
 function showScreen(id) {
-  const telas = ["screen-cadastro", "screen-select-roteiro", "screen-formulario"];
+  const telas = [
+    "screen-cadastro",
+    "screen-select-roteiro",
+    "screen-formulario",
+    "screen-final"
+  ];
+
   telas.forEach((t) => {
     const el = document.getElementById(t);
-    // Aplica ou remove a classe 'hidden' do Tailwind
     if (el) el.classList.toggle("hidden", t !== id);
   });
+}
+
+let currentScreenIndex = 0;
+const SCREEN_FLOW = [
+  "screen-cadastro",
+  "screen-select-roteiro",
+  "screen-formulario",
+  "screen-final"
+];
+
+function nextScreen() {
+  if (currentScreenIndex < SCREEN_FLOW.length - 1) {
+    currentScreenIndex++;
+    showScreen(SCREEN_FLOW[currentScreenIndex]);
+  }
+}
+
+function prevScreen() {
+  if (currentScreenIndex > 0) {
+    currentScreenIndex--;
+    showScreen(SCREEN_FLOW[currentScreenIndex]);
+  }
 }
 
 function showMessage(msg, ok = false) {
@@ -60,12 +92,10 @@ function showMessage(msg, ok = false) {
   box.classList.remove("hidden");
   box.classList.toggle("bg-red-500", !ok);
   box.classList.toggle("bg-green-600", ok);
-  // Garante que a mensagem seja removida
-  setTimeout(() => box.classList.add("hidden"), 3500); 
+  setTimeout(() => box.classList.add("hidden"), 3500);
 }
 
 function showSpinner() {
-  // Se você tiver um spinner (elemento id="loading-spinner"), ele será exibido
   document.getElementById("loading-spinner")?.classList.remove("hidden");
 }
 
@@ -91,12 +121,15 @@ function carregarMetaDoLocalStorage() {
 function initLocaisSelect() {
   const sel = document.getElementById("local");
   if (!sel) return;
-  sel.innerHTML = LOCAIS_VISITA.map((l) => `<option value="${l}">${l}</option>`).join("");
+  sel.innerHTML = LOCAIS_VISITA
+    .map((l) => `<option value="${l}">${l}</option>`)
+    .join("");
 }
 
 function initMapa() {
   const div = document.getElementById("mapa_local");
   if (!div) return;
+
   const defaultLat = -22.9035;
   const defaultLng = -43.2096;
 
@@ -104,19 +137,22 @@ function initMapa() {
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "© OpenStreetMap"
   }).addTo(mapa);
-  
-  // Necessário para o mapa carregar o tile corretamente após a inicialização
-  setTimeout(() => mapa.invalidateSize(), 250); 
+
+  setTimeout(() => mapa.invalidateSize(), 250);
 }
 
 function initCadastro() {
   const btn = document.getElementById("btn-cadastro-continuar");
   if (!btn) return;
+
   btn.onclick = () => {
     APP_STATE.avaliador = document.getElementById("avaliador").value.trim();
     APP_STATE.local = document.getElementById("local").value.trim();
-    APP_STATE.colaborador = document.getElementById("colaborador").value.trim();
+    APP_STATE.colaborador = document
+      .getElementById("colaborador")
+      .value.trim();
     APP_STATE.data = document.getElementById("data_visita").value.trim();
+
     if (
       !APP_STATE.avaliador ||
       !APP_STATE.local ||
@@ -134,6 +170,7 @@ function initCadastro() {
     localStorage.setItem("data", APP_STATE.data);
 
     showMessage("Informações salvas! Próxima etapa.", true);
+    currentScreenIndex = 1;
     showScreen("screen-select-roteiro");
   };
 }
@@ -142,20 +179,19 @@ function initCadastro() {
 // SELEÇÃO DO ROTEIRO
 // -------------------------------------------
 function voltarParaCadastro() {
+  currentScreenIndex = 0;
   showScreen("screen-cadastro");
 }
 
 async function selectRoteiro(tipo) {
   APP_STATE.tipoRoteiro = tipo;
-  // ROTEIROS deve ser definido em roteiros.js
-  APP_STATE.roteiro = ROTEIROS[tipo]; 
+  APP_STATE.roteiro = ROTEIROS[tipo]; // definido em roteiros.js
   APP_STATE.respostas = {};
   APP_STATE.fotos = {};
   APP_STATE.fotoIndex = {};
 
   showSpinner();
-  // initIndexedDB deve ser definido em indexedDB.js
-  await initIndexedDB(tipo); 
+  await initIndexedDB(tipo); // definido em indexedDB.js
   hideSpinner();
 
   const label = document.getElementById("roteiro-atual-label");
@@ -169,6 +205,7 @@ async function selectRoteiro(tipo) {
   }
 
   montarSecoes();
+
   if (tipo === "pge") {
     montarLocaisPGE();
     document.getElementById("local_pge_box")?.classList.remove("hidden");
@@ -179,6 +216,7 @@ async function selectRoteiro(tipo) {
   }
 
   renderFormulario();
+  currentScreenIndex = 2;
   showScreen("screen-formulario");
 }
 
@@ -193,14 +231,17 @@ function montarLocaisPGE() {
   const locais = [...new Set(roteiro.map((p) => p.Local))]
     .filter(Boolean)
     .sort();
+
   sel.innerHTML = `
     <option value="">Selecione o local</option>
     ${locais.map((l) => `<option value="${l}">${l}</option>`).join("")}
   `;
+
   sel.onchange = () => {
     montarSublocaisPGE();
     renderFormulario();
   };
+
   const subSel = document.getElementById("sublocal_select");
   if (subSel) {
     subSel.innerHTML = `<option value="">Selecione o local primeiro</option>`;
@@ -226,10 +267,12 @@ function montarSublocaisPGE() {
   ]
     .filter(Boolean)
     .sort();
+
   selSub.innerHTML = `
     <option value="">Selecione o sublocal</option>
     ${subs.map((s) => `<option value="${s}">${s}</option>`).join("")}
   `;
+
   selSub.onchange = () => renderFormulario();
 }
 
@@ -244,10 +287,12 @@ function montarSecoes() {
   const secoes = [
     ...new Set(roteiro.map((p) => p.Secao || p["Seção"] || p.secao))
   ].filter(Boolean);
+
   sel.innerHTML = `
     <option value="">Todas as seções</option>
     ${secoes.map((s) => `<option value="${s}">${s}</option>`).join("")}
   `;
+
   sel.onchange = () => renderFormulario(sel.value || null);
 }
 
@@ -261,22 +306,28 @@ function renderFormulario(secaoFiltrada = null) {
 
   const roteiro = APP_STATE.roteiro || [];
   let perguntas = roteiro;
-  
+
   // 1. Filtro PGE
   if (APP_STATE.tipoRoteiro === "pge") {
     const selLocal = document.getElementById("local_pge_select");
     const selSub = document.getElementById("sublocal_select");
     const local = selLocal ? selLocal.value : "";
     const sublocal = selSub ? selSub.value : "";
-    
+
     if (!local) {
-      container.innerHTML = `<div class="bg-gray-100 text-gray-500 text-center py-10 rounded-xl shadow">Selecione o local do PGE.</div>`;
+      container.innerHTML =
+        `<div class="bg-gray-100 text-gray-500 text-center py-10 rounded-xl shadow">` +
+        `Selecione o local do PGE.</div>`;
+      atualizarFotosTopo(); // limpa topo
       return;
     }
     perguntas = perguntas.filter((p) => p.Local === local);
-    
+
     if (!sublocal) {
-      container.innerHTML = `<div class="bg-gray-100 text-gray-500 text-center py-10 rounded-xl shadow">Selecione o sublocal.</div>`;
+      container.innerHTML =
+        `<div class="bg-gray-100 text-gray-500 text-center py-10 rounded-xl shadow">` +
+        `Selecione o sublocal.</div>`;
+      atualizarFotosTopo(); // limpa topo
       return;
     }
     perguntas = perguntas.filter((p) => p.Sublocal === sublocal);
@@ -290,13 +341,16 @@ function renderFormulario(secaoFiltrada = null) {
   }
 
   if (!perguntas.length) {
-    container.innerHTML = `<div class="bg-gray-100 text-gray-500 text-center py-10 rounded-xl shadow">Nenhuma pergunta encontrada.</div>`;
+    container.innerHTML =
+      `<div class="bg-gray-100 text-gray-500 text-center py-10 rounded-xl shadow">` +
+      `Nenhuma pergunta encontrada.</div>`;
+    atualizarFotosTopo();
     return;
   }
 
   const card = document.createElement("div");
   card.className = "bg-white rounded-xl shadow p-4";
-  
+
   perguntas.forEach((p) => {
     const id = p.id;
     const g = document.createElement("div");
@@ -307,7 +361,8 @@ function renderFormulario(secaoFiltrada = null) {
     if (imgSrc) {
       const img = document.createElement("img");
       img.src = imgSrc;
-      img.className = "mb-3 max-h-48 rounded border shadow object-cover support-img";
+      img.className =
+        "mb-3 max-h-48 rounded border shadow object-cover support-img";
       g.appendChild(img);
     }
 
@@ -321,8 +376,15 @@ function renderFormulario(secaoFiltrada = null) {
 
     card.appendChild(g);
   });
+
   container.appendChild(card);
   applyConditionalLogic();
+
+  if (APP_STATE.tipoRoteiro === "pge") {
+    atualizarFotosTopo();
+  } else {
+    limparFotosTopo();
+  }
 }
 
 // -------------------------------------------
@@ -336,8 +398,12 @@ function criarInputParaPergunta(p) {
   const wrapper = document.createElement("div");
   wrapper.className = "mt-2";
 
-  const opcoesStr = p.Opcoes || p["Opções"] || p.opcoes || p.opcao || p.opções || "";
-  const opcoes = opcoesStr.split(";").map((o) => o.trim()).filter(Boolean);
+  const opcoesStr =
+    p.Opcoes || p["Opções"] || p.opcoes || p.opcao || p.opções || "";
+  const opcoes = opcoesStr
+    .split(";")
+    .map((o) => o.trim())
+    .filter(Boolean);
 
   if (tipo === "radio") {
     opcoes.forEach((op) => {
@@ -362,6 +428,7 @@ function criarInputParaPergunta(p) {
       .split(";")
       .map((v) => v.trim())
       .filter(Boolean);
+
     opcoes.forEach((op) => {
       const lbl = document.createElement("label");
       lbl.className = "block mb-1";
@@ -402,7 +469,8 @@ function criarInputParaPergunta(p) {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.textContent = "Abrir Câmera";
-    btn.className = "bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded text-sm transition btn";
+    btn.className =
+      "bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded text-sm transition btn";
     btn.addEventListener("click", () => abrirCamera(idPerg));
     wrapper.appendChild(btn);
 
@@ -429,8 +497,7 @@ function criarInputParaPergunta(p) {
 // -------------------------------------------
 function autosave(idPergunta, valor) {
   APP_STATE.respostas[idPergunta] = valor;
-  // saveAnswerToDB deve ser definido em indexedDB.js
-  saveAnswerToDB(idPergunta, valor); 
+  saveAnswerToDB(idPergunta, valor); // em indexedDB.js
   applyConditionalLogic();
 }
 
@@ -449,8 +516,7 @@ function applyConditionalLogic() {
     if (!groupEl) return;
 
     const valorPai = APP_STATE.respostas[pai];
-    
-    // Mostra se a resposta do pai é igual à condição
+
     if (valorPai === cond) {
       groupEl.classList.remove("hidden");
     } else {
@@ -481,7 +547,6 @@ async function startCamera() {
   if (!video || !placeholder || !btnText || !captureBtn) return;
 
   try {
-    // Tenta usar a câmera traseira (environment)
     stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: { ideal: "environment" } },
       audio: false
@@ -527,6 +592,7 @@ document.getElementById("start-camera")?.addEventListener("click", () => {
     startCamera();
   }
 });
+
 document.getElementById("close-modal")?.addEventListener("click", closeCameraModal);
 
 document.getElementById("capture-photo")?.addEventListener("click", () => {
@@ -551,7 +617,7 @@ document.getElementById("capture-photo")?.addEventListener("click", () => {
       salvarFotoBlob(currentPhotoInputId, blob);
     },
     "image/jpeg",
-    0.7 // Qualidade da imagem
+    0.7
   );
 });
 
@@ -562,28 +628,201 @@ function salvarFotoBlob(idPergunta, blob) {
   const idx = APP_STATE.fotoIndex[idPergunta]++;
   const fotoId = `${idPergunta}_foto_${String(idx).padStart(3, "0")}`;
 
-  // savePhotoToDB deve ser definido em indexedDB.js
-  savePhotoToDB(fotoId, blob, idPergunta); 
+  savePhotoToDB(fotoId, blob, idPergunta); // indexedDB.js
 
   if (!APP_STATE.fotos[idPergunta]) APP_STATE.fotos[idPergunta] = [];
   APP_STATE.fotos[idPergunta].push(fotoId);
 
   atualizarListaFotos(idPergunta);
   showMessage(`Foto ${fotoId} salva!`, true);
+
+  if (APP_STATE.tipoRoteiro === "pge") {
+    atualizarFotosTopo();
+  }
 }
 
 function atualizarListaFotos(idPergunta) {
   const box = document.getElementById(`fotos_${idPergunta}`);
   if (!box) return;
   const arr = APP_STATE.fotos[idPergunta] || [];
-  box.innerHTML = arr.map((id) => `<div class="foto-lista-item">📸 ${id}</div>`).join("");
+  box.innerHTML = arr
+    .map((id) => `<div class="foto-lista-item">📸 ${id}</div>`)
+    .join("");
 }
 
 // -------------------------------------------
-// EXPORTAÇÃO – CSV
+// FOTOS NO TOPO (PGE – por Sublocal)
+// -------------------------------------------
+function limparFotosTopo() {
+  const topo = document.getElementById("fotos_sublocal_topo");
+  if (!topo) return;
+
+  topPhotoUrls.forEach((u) => URL.revokeObjectURL(u));
+  topPhotoUrls = [];
+  topo.innerHTML = "";
+  topo.classList.add("hidden");
+}
+
+async function atualizarFotosTopo() {
+  const topo = document.getElementById("fotos_sublocal_topo");
+  if (!topo) return;
+
+  limparFotosTopo();
+
+  if (APP_STATE.tipoRoteiro !== "pge") return;
+
+  const selLocal = document.getElementById("local_pge_select");
+  const selSub = document.getElementById("sublocal_select");
+  if (!selLocal || !selSub) return;
+
+  const local = selLocal.value;
+  const sublocal = selSub.value;
+  if (!local || !sublocal) return;
+
+  const fotos = await getAllPhotosFromDB(); // {fotoId, tipo, idPergunta, blob}
+  if (!fotos || !fotos.length) return;
+
+  const perguntas = APP_STATE.roteiro || [];
+
+  const fotosFiltradas = fotos.filter((f) => {
+    const p = perguntas.find((q) => q.id === f.idPergunta);
+    return p && p.Local === local && p.Sublocal === sublocal;
+  });
+
+  if (!fotosFiltradas.length) return;
+
+  topo.classList.remove("hidden");
+
+  fotosFiltradas.forEach((f) => {
+    const url = URL.createObjectURL(f.blob);
+    topPhotoUrls.push(url);
+
+    const img = document.createElement("img");
+    img.src = url;
+    img.alt = f.fotoId;
+    img.className =
+      "h-20 w-auto rounded-md border shadow-sm object-cover flex-shrink-0";
+    topo.appendChild(img);
+  });
+}
+
+// -------------------------------------------
+// XLSX ÚNICO – GERAL + PGE + AA COM FOTOS
+// -------------------------------------------
+async function exportarXlsxCompleto() {
+  if (typeof ExcelJS === "undefined") {
+    showMessage("Biblioteca ExcelJS não foi carregada.", false);
+    return;
+  }
+
+  if (typeof getAllAnswersAndPhotos !== "function") {
+    showMessage(
+      "Função getAllAnswersAndPhotos() não está implementada no indexedDB.js.",
+      false
+    );
+    return;
+  }
+
+  try {
+    showSpinner();
+
+    const dados = await getAllAnswersAndPhotos(); // em indexedDB.js
+    const workbook = new ExcelJS.Workbook();
+
+    const tipos = ["geral", "pge", "aa"];
+    const nomesAbas = {
+      geral: "Geral",
+      pge: "PGE",
+      aa: "Acid. Ambientais"
+    };
+
+    for (const tipo of tipos) {
+      const ws = workbook.addWorksheet(nomesAbas[tipo]);
+
+      ws.columns = [
+        { header: "local", key: "local", width: 25 },
+        { header: "secao", key: "secao", width: 40 },
+        { header: "formulario", key: "formulario", width: 18 },
+        { header: "id_pergunta", key: "id", width: 15 },
+        { header: "pergunta", key: "pergunta", width: 60 },
+        { header: "resposta", key: "resposta", width: 40 },
+        { header: "fotos", key: "fotos", width: 30 }
+      ];
+
+      const roteiro = ROTEIROS[tipo] || [];
+      const respostasTipo = dados[tipo]?.respostas || {};
+      const fotosTipo = dados[tipo]?.fotos || {};
+
+      for (const p of roteiro) {
+        const id = p.id;
+        const secaoBase = p.Secao || p["Seção"] || p.secao || "";
+        let secaoStr = secaoBase;
+
+        if (tipo === "pge") {
+          const sub = p.Sublocal || "";
+          if (sub) secaoStr = `${sub} / ${secaoBase}`;
+        }
+
+        const resposta = respostasTipo[id] || "";
+        const fotosArr = fotosTipo[id] || [];
+        const fotosIds = fotosArr.map((f) => f.fotoId).join("; ");
+
+        const row = ws.addRow({
+          local: APP_STATE.local,
+          secao: secaoStr,
+          formulario: tipo,
+          id: id,
+          pergunta: p.Pergunta || "",
+          resposta: resposta,
+          fotos: fotosIds
+        });
+
+        const primeiraFoto = fotosArr[0];
+        if (primeiraFoto && primeiraFoto.blob) {
+          const buffer = await primeiraFoto.blob.arrayBuffer();
+          const imageId = workbook.addImage({
+            buffer: buffer,
+            extension: "jpeg"
+          });
+
+          const rowIndex = row.number - 1;
+          const colIndex = 6; // 0-based
+
+          ws.addImage(imageId, {
+            tl: { col: colIndex, row: rowIndex },
+            ext: { width: 120, height: 120 }
+          });
+
+          ws.getRow(row.number).height = 90;
+        }
+      }
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+
+    const localSafe = (APP_STATE.local || "local").replace(/\s+/g, "_");
+    const dataSafe = APP_STATE.data || "data";
+
+    const nomeArquivo = `visita_completa_${localSafe}_${dataSafe}.xlsx`;
+    saveAs(blob, nomeArquivo);
+
+    showMessage("Planilha XLSX com fotos gerada com sucesso!", true);
+  } catch (err) {
+    console.error(err);
+    showMessage("Erro ao gerar XLSX com fotos.", false);
+  } finally {
+    hideSpinner();
+  }
+}
+
+// -------------------------------------------
+// EXPORTAÇÃO – CSV (formulário atual)
 // -------------------------------------------
 function baixarRelatorioCSV() {
-  // ... (código de exportação CSV idêntico ao anterior)
   if (!APP_STATE.roteiro) {
     showMessage("Nenhum roteiro selecionado.", false);
     return;
@@ -602,15 +841,18 @@ function baixarRelatorioCSV() {
     "pergunta",
     "resposta"
   ];
-  const linhas = APP_STATE.roteiro.map(p => {
 
+  const linhas = APP_STATE.roteiro.map((p) => {
     const secao = p.Secao || p["Seção"] || p.secao || "";
     const localR = p.Local || "";
     const sublocalR = p.Sublocal || "";
     const id = p.id;
-    // Escapa aspas
-    const pergunta = (p.Pergunta || "").replace(/"/g, '""'); 
-    const resposta = String(APP_STATE.respostas[p.id] || "").replace(/"/g, '""');
+
+    const pergunta = (p.Pergunta || "").replace(/"/g, '""');
+    const resposta = String(APP_STATE.respostas[p.id] || "").replace(
+      /"/g,
+      '""'
+    );
 
     return [
       `"${APP_STATE.local}"`,
@@ -618,7 +860,6 @@ function baixarRelatorioCSV() {
       `"${APP_STATE.avaliador}"`,
       `"${APP_STATE.colaborador}"`,
       `"${APP_STATE.tipoRoteiro}"`,
-  
       `"${localR}"`,
       `"${sublocalR}"`,
       `"${secao}"`,
@@ -627,9 +868,11 @@ function baixarRelatorioCSV() {
       `"${resposta}"`
     ].join(",");
   });
-  
+
   const csv = cabecalho.join(",") + "\n" + linhas.join("\n");
-  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+  const blob = new Blob(["\ufeff" + csv], {
+    type: "text/csv;charset=utf-8;"
+  });
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
@@ -645,33 +888,33 @@ function baixarRelatorioCSV() {
   showMessage("Exportação pronta! CSV compatível com R.", true);
 }
 
-
 // -------------------------------------------
-// EXPORTAÇÃO – ZIP DE FOTOS
+// EXPORTAÇÃO – ZIP DE FOTOS (formulário atual)
 // -------------------------------------------
 async function baixarFotosZip() {
   try {
     showSpinner();
-    // getAllPhotosFromDB deve ser definido em indexedDB.js
-    const fotos = await getAllPhotosFromDB(); 
+    const fotos = await getAllPhotosFromDB(); // tipo atual
     if (!fotos || !fotos.length) {
       showMessage("Não há fotos salvas neste roteiro.", false);
       return;
     }
 
-    // JSZip e FileSaver.js são carregados no HTML
     const zip = new JSZip();
     const pasta = zip.folder("fotos");
     fotos.forEach((f) => {
       const nome = `FOTO_${f.fotoId}.jpeg`;
       pasta.file(nome, f.blob);
     });
+
     const conteudo = await zip.generateAsync({ type: "blob" });
     const localSafe = (APP_STATE.local || "local").replace(/\s+/g, "_");
     const dataSafe = APP_STATE.data || "data";
 
-    // saveAs é uma função global do FileSaver.js
-    saveAs(conteudo, `fotos_${localSafe}_${dataSafe}_${APP_STATE.tipoRoteiro}.zip`);
+    saveAs(
+      conteudo,
+      `fotos_${localSafe}_${dataSafe}_${APP_STATE.tipoRoteiro}.zip`
+    );
     showMessage("ZIP de fotos gerado com sucesso!", true);
   } catch (e) {
     console.error(e);
@@ -682,59 +925,79 @@ async function baixarFotosZip() {
 }
 
 // -------------------------------------------
-// RECOMEÇAR
+// RECOMEÇAR (somente formulário atual)
 // -------------------------------------------
 async function recomeçar() {
-  if (!confirm("Deseja finalizar este formulário e iniciar outro local?")) return;
-  
-  APP_STATE.tipoRoteiro = null;
-  APP_STATE.roteiro = null;
+  if (!APP_STATE.tipoRoteiro) return;
+  if (
+    !confirm(
+      "Deseja descartar as respostas deste formulário e reiniciar o mesmo tipo?"
+    )
+  )
+    return;
+
+  await clearFormData(APP_STATE.tipoRoteiro); // indexedDB.js
+
+  APP_STATE.roteiro = ROTEIROS[APP_STATE.tipoRoteiro];
   APP_STATE.respostas = {};
   APP_STATE.fotos = {};
   APP_STATE.fotoIndex = {};
 
-  // clearCurrentDB deve ser definido em indexedDB.js
-  await clearCurrentDB(); 
-
-  const avaliador = APP_STATE.avaliador;
-  const colaborador = APP_STATE.colaborador;
-  const data = APP_STATE.data;
-
-  APP_STATE.local = "";
-  
-  document.getElementById("avaliador").value = avaliador;
-  document.getElementById("colaborador").value = colaborador;
-  document.getElementById("data_visita").value = data;
-  document.getElementById("local").value = "Selecionar Local..."; 
-  
-  localStorage.setItem("avaliador", avaliador);
-  localStorage.setItem("colaborador", colaborador);
-  localStorage.setItem("data", data);
-  localStorage.removeItem("local");
-
-  showScreen("screen-cadastro");
-  showMessage("Formulário finalizado. Você pode iniciar um novo local.", true);
+  renderFormulario();
+  showMessage("Formulário reiniciado.", true);
 }
 
 // -------------------------------------------
-// BOTÕES DA TELA DE FORMULÁRIO
+// BOTÕES – TELA FINAL / GERAL
 // -------------------------------------------
 function initFormButtons() {
-  const btnSalvar = document.getElementById("salvar_respostas");
-  const btnCSV = document.getElementById("baixar_relatorio_csv");
-  const btnZIP = document.getElementById("baixar_fotos_zip");
-  const btnRecomecar = document.getElementById("btn-recomecar");
-  if (btnSalvar) {
-    // Apenas informativo, pois o save é automático (autosave)
-    btnSalvar.onclick = () => showMessage("As respostas são salvas automaticamente (autosave).", true);
+  const btnFinalVoltar = document.getElementById("final-voltar");
+  if (btnFinalVoltar) {
+    btnFinalVoltar.onclick = () => {
+      currentScreenIndex = 2;
+      showScreen("screen-formulario");
+    };
   }
-  if (btnCSV) btnCSV.onclick = baixarRelatorioCSV;
-  if (btnZIP) btnZIP.onclick = baixarFotosZip;
-  if (btnRecomecar) btnRecomecar.onclick = recomeçar;
+
+  const btnXlsx = document.getElementById("btn-xlsx-completo");
+  if (btnXlsx) {
+    btnXlsx.onclick = () => exportarXlsxCompleto();
+  }
+
+  const btnFinalizarVisita = document.getElementById("finalizar-visita");
+  if (btnFinalizarVisita) {
+    btnFinalizarVisita.onclick = async () => {
+      if (
+        !confirm(
+          "Finalizar visita? Todos os dados (Geral, PGE e AA) serão apagados."
+        )
+      )
+        return;
+
+      await clearAllData(); // indexedDB.js
+
+      APP_STATE.tipoRoteiro = null;
+      APP_STATE.roteiro = null;
+      APP_STATE.respostas = {};
+      APP_STATE.fotos = {};
+      APP_STATE.fotoIndex = {};
+      APP_STATE.local = "";
+      APP_STATE.data = "";
+
+      localStorage.removeItem("local");
+      localStorage.removeItem("data");
+
+      limparFotosTopo();
+      currentScreenIndex = 0;
+      showScreen("screen-cadastro");
+
+      showMessage("Visita finalizada! Você pode iniciar uma nova.", true);
+    };
+  }
 }
 
 // -------------------------------------------
-// INIT GERAL (GARANTIA DE VISIBILIDADE DE TELA)
+// INIT GERAL
 // -------------------------------------------
 function initApp() {
   initLocaisSelect();
@@ -742,15 +1005,18 @@ function initApp() {
   initMapa();
   initCadastro();
   initFormButtons();
-  
-  // 🚨 LINHA CRÍTICA PARA INICIALIZAÇÃO DE TELA
-  showScreen("screen-cadastro"); 
+
+  showScreen("screen-cadastro");
 }
 
+// ------------------------------------------------------------------
 // Funções globais para uso em onclick="" no HTML
+// ------------------------------------------------------------------
 window.selectRoteiro = selectRoteiro;
 window.voltarParaCadastro = voltarParaCadastro;
-window.recomeçar = recomeçar; 
+window.recomeçar = recomeçar;
+window.nextScreen = nextScreen;
+window.prevScreen = prevScreen;
 
 // Inicialização da aplicação após o carregamento total
 window.addEventListener("load", initApp);

@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="manifest" href="manifest.json">
 
   <meta charset="utf-8">
@@ -9,17 +12,19 @@
   <title>Formulário Técnico – Supervisão Ambiental</title>
 
   <script src="https://cdn.tailwindcss.com"></script>
-  
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-
   <link rel="stylesheet" href="style.css">
-
 </head>
 
 <body class="bg-white">
 
-<div id="message-box" class="fixed top-0 left-1/2 transform -translate-x-1/2 mt-4 p-3 text-white rounded-lg shadow-lg hidden z-50"></div>
+<!-- MENSAGEM -->
+<div id="message-box"
+     class="fixed top-0 left-1/2 transform -translate-x-1/2 mt-4 p-3 text-white rounded-lg shadow-lg hidden z-50"></div>
 
+<!-- ================================
+      1) TELA CADASTRO
+================================ -->
 <section id="screen-cadastro" class="max-w-5xl mx-auto p-4">
 
   <div class="text-center mb-6">
@@ -30,58 +35,46 @@
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
     <div class="bg-white p-6 rounded-xl shadow">
 
-      <label class="block font-medium text-gray-700 mb-1">
-        Nome do Avaliador:
-      </label>
-      <input id="avaliador"
-             type="text"
-             class="w-full p-3 border border-gray-300 rounded mb-4"
-             placeholder="Digite o nome">
-
-      <label class="block font-medium text-gray-700 mb-1">
-        Local da Visita:
-      </label>
-      <select id="local"
-              class="w-full p-3 border border-gray-300 rounded mb-4">
-        </select>
-
-      <label class="block font-medium text-gray-700 mb-1">
-        Data da Visita:
-      </label>
-      <input id="data_visita"
-             type="date"
+      <label class="block font-medium text-gray-700 mb-1">Nome do Avaliador:</label>
+      <input id="avaliador" type="text"
              class="w-full p-3 border border-gray-300 rounded mb-4">
 
-      <label class="block font-medium text-gray-700 mb-1">
-        Colaborador da GLA:
-      </label>
-      <input id="colaborador"
-             type="text"
-             class="w-full p-3 border border-gray-300 rounded mb-6"
-             placeholder="Digite o nome">
+      <label class="block font-medium text-gray-700 mb-1">Local da Visita:</label>
+      <select id="local"
+              class="w-full p-3 border border-gray-300 rounded mb-4"></select>
+
+      <label class="block font-medium text-gray-700 mb-1">Data da Visita:</label>
+      <input id="data_visita" type="date"
+             class="w-full p-3 border border-gray-300 rounded mb-4">
+
+      <label class="block font-medium text-gray-700 mb-1">Colaborador da GLA:</label>
+      <input id="colaborador" type="text"
+             class="w-full p-3 border border-gray-300 rounded mb-6">
 
       <button id="btn-cadastro-continuar"
               class="w-full bg-blue-700 text-white py-3 rounded-lg font-semibold hover:bg-blue-800">
         Salvar e Continuar
       </button>
+
     </div>
 
     <div id="mapa_local"
-     style="height: 450px;
-     width: 100%;"
-     class="rounded-xl border border-gray-300">
-    </div>
-
+         style="height:450px; width:100%;"
+         class="rounded-xl border border-gray-300"></div>
+  </div>
 </section>
 
-<section id="screen-select-roteiro"
-         class="max-w-xl mx-auto p-8 hidden"> <div class="text-center mb-6">
+<!-- ================================
+      2) TELA SELEÇÃO DE ROTEIRO
+================================ -->
+<section id="screen-select-roteiro" class="max-w-xl mx-auto p-8 hidden">
+
+  <div class="text-center mb-6">
     <img src="icon.png" alt="Logo" class="h-16 mx-auto mb-4">
     <h2 class="text-xl font-semibold text-gray-700">
-      Que tipo de formulário você deseja preencher?
+      Que tipo de formulário deseja preencher?
     </h2>
   </div>
 
@@ -102,98 +95,139 @@
     </button>
   </div>
 
-  <button onclick="voltarParaCadastro()"
-          class="block mx-auto mt-6 text-sm 
-          text-gray-500 hover:text-gray-700 underline">
-    ← Voltar ao cadastro
-  </button>
 </section>
 
-<section id="screen-formulario" class="max-w-4xl mx-auto p-4 hidden"> <div class="text-center mb-8">
+<!-- ================================
+      3) TELA FORMULÁRIO
+================================ -->
+<section id="screen-formulario" class="max-w-4xl mx-auto p-4 hidden">
+
+  <div class="text-center mb-8">
     <img src="icon.png" class="h-12 mx-auto mb-2">
     <h3 class="text-xl font-semibold text-gray-700">
       Relatório de Supervisão Ambiental
     </h3>
     <p id="roteiro-atual-label" class="text-sm text-gray-500"></p>
   </div>
-  
+
+  <!-- PGE: Local e Sublocal -->
   <div id="local_pge_box" class="max-w-xs mx-auto mb-6 hidden">
     <label class="block font-medium text-gray-700 mb-1">Selecionar Local (PGE):</label>
     <select id="local_pge_select"
-            class="w-full p-3 border border-gray-300 rounded">
-    </select>
+            class="w-full p-3 border border-gray-300 rounded"></select>
   </div>
 
   <div id="sublocal_box" class="max-w-xs mx-auto mb-6 hidden">
     <label class="block font-medium text-gray-700 mb-1">Selecionar Sublocal:</label>
     <select id="sublocal_select"
-            class="w-full p-3 border border-gray-300 rounded">
-    </select>
+            class="w-full p-3 border border-gray-300 rounded"></select>
   </div>
 
-  <div class="max-w-xs mx-auto mb-8">
+  <!-- Seções -->
+  <div class="max-w-xs mx-auto mb-6">
     <label class="block font-medium text-gray-700 mb-1">Selecionar Seção:</label>
     <select id="secao_select"
-            class="w-full p-3 border border-gray-300 rounded">
-    </select>
+            class="w-full p-3 border border-gray-300 rounded"></select>
   </div>
 
+  <!-- FOTOS DO SUBLOCAL (TOPO) -->
+  <div id="fotos_sublocal_topo"
+       class="max-w-3xl mx-auto mb-4 flex gap-2 overflow-x-auto hidden"></div>
+
+  <!-- CONTEÚDO DO FORMULÁRIO -->
   <div id="conteudo_formulario" class="max-w-3xl mx-auto"></div>
 
-  <div class="max-w-xs mx-auto mt-10 space-y-4">
-    <button id="salvar_respostas"
-            class="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700">
-      Salvar Respostas (Autosave)
+  <!-- NAVEGAÇÃO DO FORMULÁRIO -->
+  <div class="max-w-xs mx-auto mt-10 flex justify-between">
+    <button onclick="prevScreen()"
+            class="bg-gray-600 text-white py-3 px-5 rounded-lg hover:bg-gray-700">
+      ← Voltar
     </button>
 
-    <button id="baixar_relatorio_csv"
-            class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
-      Baixar CSV
-    </button>
-
-    <button id="baixar_fotos_zip"
-            class="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700">
-      Baixar Fotos ZIP
-    </button>
-
-    <button id="btn-recomecar"
-            class="w-full bg-gray-600 text-white py-3 rounded-lg hover:bg-gray-700">
-      Recomeçar
+    <button onclick="nextScreen()"
+            class="bg-purple-600 text-white py-3 px-5 rounded-lg hover:bg-purple-700">
+      Avançar →
     </button>
   </div>
 
 </section>
 
+<!-- ================================
+      4) TELA FINAL
+================================ -->
+<section id="screen-final" class="max-w-3xl mx-auto p-8 hidden">
 
-<div id="camera-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden z-50 flex items-center justify-center p-4">
+  <h2 class="text-xl font-semibold text-center text-gray-700 mb-4">
+    Finalização da Visita
+  </h2>
+  <p class="text-center text-gray-500 mb-6 text-sm">
+    Gere o arquivo consolidado com todas as respostas (Geral, PGE e AA) e finalize a visita
+    para iniciar um novo ciclo, se necessário.
+  </p>
+
+  <div class="space-y-4 max-w-md mx-auto">
+
+    <button id="btn-xlsx-completo"
+            class="w-full bg-green-700 text-white py-3 rounded-lg hover:bg-green-800">
+      Baixar Respostas Completas (XLSX com Fotos)
+    </button>
+
+    <button id="finalizar-visita"
+            class="w-full bg-gray-800 text-white py-3 rounded-lg hover:bg-gray-900">
+      Finalizar Visita e Limpar Dados
+    </button>
+
+    <button id="final-voltar"
+            class="w-full text-sm text-gray-500 hover:text-gray-700 underline">
+      ← Voltar ao formulário
+    </button>
+  </div>
+
+</section>
+
+<!-- ================================
+      MODAL CÂMERA
+================================ -->
+<div id="camera-modal"
+     class="fixed inset-0 bg-black bg-opacity-70 hidden z-50 flex items-center justify-center p-4">
   <div class="bg-white rounded-lg shadow-2xl p-4 w-full max-w-lg">
+
     <h4 class="text-lg font-bold mb-4">Capturar Foto</h4>
-    
+
     <div class="relative w-full aspect-video bg-gray-200 rounded-lg overflow-hidden">
-        <video id="video" autoplay playsinline class="w-full h-full object-cover hidden"></video>
-        <canvas id="canvas" class="hidden"></canvas>
-        <div id="camera-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-500">
-            Aguardando inicialização da câmera...
-        </div>
+      <video id="video" autoplay playsinline
+             class="w-full h-full object-cover hidden"></video>
+      <canvas id="canvas" class="hidden"></canvas>
+      <div id="camera-placeholder"
+           class="absolute inset-0 flex items-center justify-center text-gray-500">
+        Aguardando inicialização da câmera...
+      </div>
     </div>
 
     <div class="mt-4 flex justify-between space-x-2">
-        <button id="start-camera" class="bg-blue-600 text-white py-2 px-4 rounded-lg flex-1">
-            <span id="camera-btn-text">Iniciar Câmera</span>
-        </button>
-        <button id="capture-photo" disabled class="bg-green-600 text-white py-2 px-4 rounded-lg flex-1 disabled:opacity-50">
-            Tirar Foto
-        </button>
+      <button id="start-camera"
+              class="bg-blue-600 text-white py-2 px-4 rounded-lg flex-1">
+        <span id="camera-btn-text">Iniciar Câmera</span>
+      </button>
+      <button id="capture-photo" disabled
+              class="bg-green-600 text-white py-2 px-4 rounded-lg flex-1 disabled:opacity-50">
+        Tirar Foto
+      </button>
     </div>
-    
-    <button id="close-modal" class="w-full mt-3 text-sm text-gray-600 underline hover:text-gray-800">
-        Fechar
+
+    <button id="close-modal"
+            class="w-full mt-3 text-sm text-gray-600 underline hover:text-gray-800">
+      Fechar
     </button>
+
   </div>
 </div>
+
+<!-- SCRIPTS -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
 <script src="roteiros.js"></script>
 <script src="indexedDB.js"></script>
@@ -209,5 +243,6 @@
     });
   }
 </script>
+
 </body>
 </html>
