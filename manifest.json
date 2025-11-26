@@ -1,6 +1,6 @@
 {
-  "name": "CEDAE – Supervisão Ambiental",
-  "short_name": "Supervisão Ambiental",
+  "name": "CEDAE – Formulário de Visita Técnica de Supervisão Ambiental",
+  "short_name": "Relatório de Supervisão Ambiental",
   "description": "Aplicativo técnico para registro de visitas de supervisão ambiental com suporte offline.",
   "start_url": "/pwa_modular/index.html",
   "scope": "/pwa_modular/",
