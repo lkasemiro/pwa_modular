@@ -12,7 +12,7 @@ const LOCAIS_VISITA = [
   "Tinguá - Barrelão",
   "Tinguá - Serra Velha",
   "Tinguá - Brava/Macucuo",
-  "Tinguá - Columi",
+  "Tinguá - Colomi",
   "Tinguá - Boa Esperança",
   "Mantiquira - T1",
   "Mantiquira - T2",
