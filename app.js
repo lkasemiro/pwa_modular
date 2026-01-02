@@ -22,6 +22,7 @@ const LOCAIS_VISITA = [
   "Xerém III - Registro"
 ];
 
+
 const APP_STATE = {
   avaliador: "",
   local: "",
@@ -39,6 +40,18 @@ const APP_STATE = {
 let mapa = null;
 let stream = null;
 let currentPhotoInputId = null;
+// -------------------------------------------
+// ESTADO GEOESPACIAL DA VISITA
+// -------------------------------------------
+const GEO_STATE = {
+  latitude: null,
+  longitude: null,
+  accuracy: null,
+  timestamp: null
+};
+
+let userMarker = null;
+let accuracyCircle = null;
 
 // URLs criadas para miniaturas do topo (para revogar depois)
 let topPhotoUrls = [];
@@ -134,12 +147,76 @@ function initMapa() {
   const defaultLng = -43.2096;
 
   mapa = L.map("mapa_local").setView([defaultLat, defaultLng], 12);
+
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "© OpenStreetMap"
   }).addTo(mapa);
 
+  // Garante render correto quando o mapa aparece
   setTimeout(() => mapa.invalidateSize(), 250);
+
+  // Tenta obter localização automaticamente
+  obterLocalizacaoAtual();
 }
+// -------------------------------------------
+// GEOLOCALIZAÇÃO
+// -------------------------------------------
+function obterLocalizacaoAtual() {
+  if (!navigator.geolocation) {
+    showMessage("Geolocalização não suportada neste dispositivo.", false);
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const { latitude, longitude, accuracy } = pos.coords;
+
+      GEO_STATE.latitude = latitude;
+      GEO_STATE.longitude = longitude;
+      GEO_STATE.accuracy = accuracy;
+      GEO_STATE.timestamp = new Date().toISOString();
+
+      atualizarMapaComLocalizacao(latitude, longitude, accuracy);
+    },
+    (err) => {
+      console.warn("Erro de geolocalização:", err);
+      showMessage(
+        "Não foi possível obter a localização. Verifique o GPS.",
+        false
+      );
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0
+    }
+  );
+}
+
+function atualizarMapaComLocalizacao(lat, lng, accuracy) {
+  if (!mapa) return;
+
+  // Remove marcador anterior
+  if (userMarker) mapa.removeLayer(userMarker);
+  if (accuracyCircle) mapa.removeLayer(accuracyCircle);
+
+  userMarker = L.marker([lat, lng], {
+    title: "Local da visita"
+  })
+    .addTo(mapa)
+    .bindPopup("📍 Localização atual da visita")
+    .openPopup();
+
+  accuracyCircle = L.circle([lat, lng], {
+    radius: accuracy,
+    color: "#2563eb",
+    fillColor: "#3b82f6",
+    fillOpacity: 0.2
+  }).addTo(mapa);
+
+  mapa.setView([lat, lng], 16);
+}
+
 
 function initCadastro() {
   const btn = document.getElementById("btn-cadastro-continuar");
@@ -172,6 +249,17 @@ function initCadastro() {
     showMessage("Informações salvas! Próxima etapa.", true);
     currentScreenIndex = 1;
     showScreen("screen-select-roteiro");
+
+    // Guarda coordenadas no estado da visita (se disponíveis)
+if (GEO_STATE.latitude && GEO_STATE.longitude) {
+  APP_STATE.coordenadas = {
+    lat: GEO_STATE.latitude,
+    lng: GEO_STATE.longitude,
+    accuracy: GEO_STATE.accuracy,
+    timestamp: GEO_STATE.timestamp
+  };
+}
+
   };
 }
 
