@@ -1,47 +1,31 @@
 {
-  "name": "CEDAE – Supervisão Ambiental",
-  "short_name": "Sup. Ambiental",
-  "description": "Aplicativo técnico para registro de visitas de supervisão ambiental com suporte offline[cite: 35, 38].",
-  "start_url": "/pwa_modular/index.html",
-  "scope": "/pwa_modular/",
+  "name": "Formulário Técnico CEDAE Offline",
+  "short_name": "CEDAE Form",
+  "description": "Coleta de dados ambientais com operação 100% offline.",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
-  "background_color": "#003366",
-  "theme_color": "#003366",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
+  "background_color": "#0C3C78",
+  "theme_color": "#0C3C78",
   "icons": [
     {
-      "src": "/pwa_modular/icon-192.png",
+      "src": "icon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/pwa_modular/icon-512.png",
+      "src": "icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/pwa_modular/icon-maskable.png",
+      "src": "icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/pwa_modular/screenshot.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Tela principal do formulário de supervisão"
-    },
-    {
-      "src": "/pwa_modular/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Aplicativo de Supervisão Ambiental"
     }
   ]
 }
