@@ -2,7 +2,7 @@
 // SERVICE WORKER – PWA Supervisão Ambiental CEDAE
 // =============================================
 
-const CACHE_NAME = "cedae-pwa-v10"; // Incrementado para v10 para forçar atualização do manifest novo
+const CACHE_NAME = "cedae-pwa-v11"; // Incrementado para v11
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -11,70 +11,68 @@ const APP_SHELL = [
   "./indexedDB.js",
   "./roteiros.js",
   "./style.css",
-  "./icon.png",
-  "./icon-192.png",
-  "./icon-512.png",
-  "./icon-maskable.png"
+  "./icon.png"
 ];
 
-// INSTALL – Cache agressivo dos recursos essenciais
+// INSTALL – Cache agressivo
 self.addEventListener("install", (event) => {
   console.log("SW: Instalando nova versão...");
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Usamos addAll para garantir que o núcleo do app esteja disponível offline
+      // Usamos cache.addAll para o núcleo. 
+      // DICA: Se um desses arquivos falhar (404), o SW não instala.
       return cache.addAll(APP_SHELL);
     })
   );
   self.skipWaiting();
 });
 
-// ACTIVATE – Gestão de memória e limpeza
+// ACTIVATE – Limpeza de cache antigo
 self.addEventListener("activate", (event) => {
-  console.log("SW: Versão ativa e pronta.");
+  console.log("SW: Versão ativa.");
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => {
-            console.log("SW: Limpando cache antigo:", key);
-            return caches.delete(key);
-          })
+        keys.filter((key) => key !== CACHE_NAME)
+            .map((key) => caches.delete(key))
       )
     )
   );
   self.clients.claim();
 });
 
-// FETCH – Estratégia "Cache First, falling back to Network"
-// Ideal para áreas como Tinguá: prioriza a velocidade do cache e não depende da rede.
+// FETCH – Estratégia "Cache First" com correção de clone
 self.addEventListener("fetch", (event) => {
   const request = event.request;
 
-  // Ignorar extensões e esquemas que não sejam http/https (evita erros no Chrome)
   if (!request.url.startsWith('http')) return;
 
   event.respondWith(
     caches.match(request).then((cacheRes) => {
-      // Se está no cache, entrega imediatamente (performance máxima)
+      // 1. Se está no cache, retorna imediatamente
       if (cacheRes) return cacheRes;
 
-      // Se não está no cache, tenta buscar na rede
+      // 2. Se não está, busca na rede
       return fetch(request)
         .then((networkRes) => {
-          // Só armazena no cache se for uma resposta válida do nosso servidor
-          if (networkRes && networkRes.status === 200 && networkRes.type === "basic") {
-            const responseToCache = networkRes.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
-            });
+          // Validação da resposta
+          if (!networkRes || networkRes.status !== 200) {
+            return networkRes;
           }
+
+          // CORREÇÃO: Clonamos IMEDIATAMENTE antes de qualquer outra ação
+          const responseToCache = networkRes.clone();
+
+          // Salvamento assíncrono no cache
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, responseToCache);
+          });
+
           return networkRes;
         })
-        .catch(() => {
-          // Fallback: se estiver offline e o recurso não estiver no cache,
-          // redireciona para a página inicial (ajuda a evitar "dinossauro" do Chrome)
+        .catch((err) => {
+          console.error("SW: Erro na busca (Offline):", err);
+          // Fallback para navegação
           if (request.mode === 'navigate') {
             return caches.match("./index.html");
           }
@@ -83,7 +81,6 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// Listener para forçar atualização via interface (botão "Atualizar App")
 self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
