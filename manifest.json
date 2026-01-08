@@ -1,11 +1,9 @@
 {
-  "name": "Formulário Técnico CEDAE Offline",
-  "short_name": "CEDAE Form",
+  "name": "Supervisão Ambiental CEDAE",
+  "short_name": "CEDAE Offline",
   "description": "Coleta de dados ambientais com operação 100% offline.",
   "start_url": "./index.html",
-  "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
   "background_color": "#0C3C78",
   "theme_color": "#0C3C78",
   "icons": [
@@ -19,13 +17,16 @@
       "src": "icon.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
-    },
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
     {
-      "src": "icon.png",
+      "src": "icon.png", 
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable"
+      "form_factor": "narrow",
+      "label": "Tela Inicial do Formulário"
     }
   ]
 }
