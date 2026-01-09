@@ -1,61 +1,68 @@
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vistoria CEDAE</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.tailwindcss.com"></script> </head>
-<body>
+<body class="bg-gray-100 text-gray-900">
+    <div id="message-box" class="hidden"></div>
+
     <header class="bg-[#0C3C78] text-white p-6 rounded-b-3xl shadow-xl">
-        <div class="flex justify-between items-start">
+        <div class="flex justify-between items-center">
             <div>
-                <h1 class="text-xl font-bold">Supervisão Ambiental</h1>
-                <p class="text-blue-200 text-xs">Vistoria de Campo</p>
+                <h1 class="text-xl font-bold">Vistoria Ambiental</h1>
+                <p class="text-blue-200 text-xs">CEDAE - Supervisão Técnica</p>
             </div>
-            <div class="pulse-container">
+            <div class="pulse-container bg-white/10 p-2 rounded-full flex items-center gap-2">
                 <div class="pulse-dot"></div>
-                <span class="text-[10px] font-mono">GPS ATIVO</span>
+                <span class="text-[10px] font-mono font-bold">GPS ATIVO</span>
             </div>
         </div>
     </header>
 
     <nav class="flex px-6 mt-4 gap-4">
-        <button onclick="alternarAba('formulario')" id="btn-form" class="flex-1 pb-2 border-b-4 border-[#0C3C78] font-bold text-[#0C3C78]">Nova Vistoria</button>
-        <button onclick="alternarAba('historico')" id="btn-hist" class="flex-1 pb-2 border-b-4 border-transparent text-gray-400 font-bold">Histórico</button>
+        <button onclick="showScreen('screen-cadastro')" id="btn-form" class="flex-1 pb-2 border-b-4 border-[#0C3C78] font-bold text-[#0C3C78]">Vistoria</button>
+        <button onclick="exibirHistorico()" id="btn-hist" class="flex-1 pb-2 border-b-4 border-transparent text-gray-400 font-bold">Histórico</button>
     </nav>
 
     <main class="p-6">
-        <section id="aba-formulario">
+        <section id="screen-cadastro" class="space-y-4">
             <div class="card">
-                <label class="block font-bold mb-2">Local da Vistoria</label>
-                <select id="select-local" onchange="capturarCoordenadas('local')" class="w-full p-3 border rounded-lg bg-gray-50">
-                    <option value="">Selecione a Unidade...</option>
-                    <option value="Tinguá">ETA Tinguá</option>
-                </select>
-                <p class="text-[10px] text-blue-600 mt-2 font-mono">Coord: <span id="coords-local">0.000, 0.000</span></p>
+                <h2 class="font-bold text-gray-700 mb-4 flex items-center gap-2">📍 Localização e Dados</h2>
+                <div class="space-y-3">
+                    <input type="text" id="avaliador" placeholder="Nome do Avaliador" class="w-full p-3 border rounded-lg">
+                    <select id="local" onchange="capturarGPS('inicial')" class="w-full p-3 border rounded-lg bg-white"></select>
+                    <input type="date" id="data_visita" class="w-full p-3 border rounded-lg">
+                </div>
+                <div class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <p class="text-[10px] font-mono text-blue-700">Coordenadas Iniciais: <span id="display-coords-inicial">0.000000, 0.000000</span></p>
+                </div>
+                <button id="btn-cadastro-continuar" class="btn-cedae mt-4">PRÓXIMO: SELECIONAR ROTEIRO</button>
             </div>
 
-            <div class="card">
-                <label class="block font-bold mb-2">Sublocal (Roteiro PGE)</label>
-                <select id="select-sublocal" onchange="capturarCoordenadas('sublocal')" class="w-full p-3 border rounded-lg bg-gray-50">
-                    <option value="">Selecione o Ponto...</option>
-                    <option value="Captação">Captação Principal</option>
-                </select>
-                <p class="text-[10px] text-blue-600 mt-2 font-mono">Coord: <span id="coords-sublocal">0.000, 0.000</span></p>
+            <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl text-xs text-amber-900">
+                <p class="font-bold mb-1 italic">📘 Guia Rápido de Campo:</p>
+                <ul class="list-disc ml-4 space-y-1">
+                    <li>O GPS captura sua posição ao selecionar o local.</li>
+                    <li>Fotos e dados são salvos localmente (Modo Offline).</li>
+                    <li>Baixe o Excel ao final para consolidar as respostas.</li>
+                </ul>
             </div>
-
-            <button onclick="salvarVistoria()" class="btn-cedae shadow-lg">FINALIZAR E SALVAR</button>
         </section>
 
-        <section id="aba-historico" class="hidden">
-            <h2 class="font-bold text-gray-700 mb-4">Vistorias Salvas no Dispositivo</h2>
-            <div id="lista-historico" class="space-y-3">
+        <section id="screen-select-roteiro" class="hidden space-y-4">
+            <h2 class="font-bold text-[#0C3C78]">Selecione o Roteiro de Inspeção</h2>
+            <button onclick="selectRoteiro('pge')" class="w-full p-4 bg-white border-2 border-blue-100 rounded-xl text-left hover:border-blue-500 shadow-sm">
+                <span class="block font-bold">Roteiro PGE</span>
+                <span class="text-xs text-gray-500 italic">Coleta localização por sublocal.</span>
+            </button>
+            </section>
+
+        <section id="screen-historico" class="hidden space-y-3">
+            <h2 class="font-bold text-[#0C3C78]">Vistorias Recentes (Este Dispositivo)</h2>
+            <div id="lista-historico" class="space-y-2">
                 </div>
         </section>
-    </main>
 
-    <script src="indexedDB.js"></script>
-    <script src="app.js"></script>
+        <section id="screen-formulario" class="hidden">
+            <div id="conteudo_formulario"></div>
+            <button onclick="finalizarVistoria()" class="btn-cedae mt-6">FINALIZAR E GERAR RELATÓRIO</button>
+        </section>
+    </main>
 </body>
 </html>
+
