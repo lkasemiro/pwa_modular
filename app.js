@@ -74,7 +74,9 @@ async function abrirHistorico() {
 // ---------------- ROTEIROS ----------------
 function selectRoteiro(tipo) {
   const roteiro = ROTEIROS[tipo];
-  if (!roteiro) return showMessage("Roteiro não encontrado.");
+  if (!roteiro || roteiro.length === 0) {
+    return showMessage(`Roteiro "${tipo}" não encontrado ou vazio.`);
+  }
 
   APP_STATE.tipoRoteiro = tipo;
   APP_STATE.roteiroSelecionado = roteiro;
@@ -88,27 +90,43 @@ function selectRoteiro(tipo) {
     popularSublocaisPGE();
   } else {
     subBox.classList.add("hidden");
-    renderPerguntas(roteiro);
+    renderPerguntas(roteiro); // 🔥 agora funciona de novo
   }
 
   showScreen("screen-formulario");
 }
 
+
 function popularSublocaisPGE() {
   const subSelect = document.getElementById("sublocal_select");
+  subSelect.innerHTML = "";
 
-  const sublocais = [...new Set(
-    APP_STATE.roteiroSelecionado
-      .filter(p => p.Local === APP_STATE.local)
-      .map(p => p.Sublocal)
-  )];
+  const sublocais = [
+    ...new Set(
+      APP_STATE.roteiroSelecionado
+        .filter(p => getLocalPergunta(p) === APP_STATE.local)
+        .map(p => getSublocalPergunta(p))
+        .filter(s => s && s.trim() !== "")
+    )
+  ];
+
+  if (sublocais.length === 0) {
+    subSelect.innerHTML = `<option value="">Nenhum sublocal encontrado</option>`;
+    return;
+  }
 
   subSelect.innerHTML =
     `<option value="">Escolha o Sublocal...</option>` +
-    sublocais.map(s => `<option>${s}</option>`).join("");
+    sublocais.map(s => `<option value="${s}">${s}</option>`).join("");
 
-  subSelect.onchange = e => {
-    const filtrado = APP_STATE.roteiroSelecionado.filter(p => p.Sublocal === e.target.value);
+  subSelect.onchange = (e) => {
+    const sub = e.target.value;
+    if (!sub) return;
+
+    const filtrado = APP_STATE.roteiroSelecionado.filter(
+      p => getSublocalPergunta(p) === sub
+    );
+
     renderPerguntas(filtrado);
   };
 }
