@@ -1,5 +1,5 @@
 // ===========================================
-// APP.JS – VERSÃO DEFINITIVA PARA ROTEIROS
+// APP.JS – VERSÃO REVISADA (FOCO EM NOVOS BOTÕES)
 // ===========================================
 
 const LOCAIS_VISITA = [
@@ -15,8 +15,9 @@ const APP_STATE = {
   local: "",
   data_visita: "",
   tipoRoteiro: null,
-  roteiroSelecionado: [], // O array bruto (PGE, Geral ou AA)
+  roteiroSelecionado: [],
   respostas: {},
+  fotos: {}, // 📸 NOVO: Guardar base64 separado das respostas de texto
   geolocalizacao_inicio: { lat: null, lng: null }
 };
 
@@ -28,6 +29,7 @@ function showScreen(id) {
 
 function showMessage(msg, ok = false) {
   const box = document.getElementById("message-box");
+  if (!box) return alert(msg);
   box.textContent = msg;
   box.className = `fixed top-4 left-1/2 -translate-x-1/2 p-4 rounded-xl shadow-xl z-50 ${ok ? "bg-green-600" : "bg-red-500"} text-white font-bold`;
   box.classList.remove("hidden");
@@ -56,21 +58,15 @@ function initCadastro() {
 
 // ---------------- LÓGICA DE ROTEIROS ----------------
 function selectRoteiro(tipo) {
-  // Pega o roteiro do objeto global ROTEIROS definido no seu roteiros.js
   const roteiro = ROTEIROS[tipo];
-  
-  if (!roteiro) {
-    return showMessage("Erro: Roteiro '" + tipo + "' não encontrado.");
-  }
+  if (!roteiro) return showMessage("Roteiro não encontrado.");
 
   APP_STATE.tipoRoteiro = tipo;
   APP_STATE.roteiroSelecionado = roteiro;
   APP_STATE.respostas = {};
+  APP_STATE.fotos = {}; // Reseta fotos para nova vistoria
 
   const subBox = document.getElementById("sublocal_box");
-  const container = document.getElementById("conteudo_formulario");
-  container.innerHTML = ""; // Limpa anterior
-
   if (tipo === 'pge') {
     subBox.classList.remove("hidden");
     popularSublocaisPGE();
@@ -78,24 +74,16 @@ function selectRoteiro(tipo) {
     subBox.classList.add("hidden");
     renderPerguntas(APP_STATE.roteiroSelecionado);
   }
-
   showScreen("screen-formulario");
 }
 
 function popularSublocaisPGE() {
   const subSelect = document.getElementById("sublocal_select");
-  
-  // Filtra no roteiro PGE apenas os sublocais que pertencem ao LOCAL selecionado na tela 1
   const sublocaisUnicos = [...new Set(
     APP_STATE.roteiroSelecionado
       .filter(p => p.Local === APP_STATE.local)
       .map(p => p.Sublocal)
   )];
-
-  if (sublocaisUnicos.length === 0) {
-    subSelect.innerHTML = `<option value="">Nenhum sublocal para este local</option>`;
-    return;
-  }
 
   subSelect.innerHTML = `<option value="">Escolha o Sublocal...</option>` + 
     sublocaisUnicos.map(s => `<option value="${s}">${s}</option>`).join("");
@@ -114,12 +102,8 @@ function renderPerguntas(listaPerguntas) {
   listaPerguntas.forEach(p => {
     const div = document.createElement("div");
     div.id = `div_pergunta_${p.id}`;
-    div.className = "bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-4 animate-in fade-in";
-    
-    // Se tiver pai (pergunta condicional), começa escondida
-    if (p.Pai) div.classList.add("hidden");
+    div.className = `bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-4 ${p.Pai ? 'hidden' : ''}`;
 
-    // Imagem de Apoio (PGE)
     let imgHtml = "";
     if (p.ImagemApoio && p.ImagemApoio.length > 50) {
       imgHtml = `<img src="${p.ImagemApoio}" class="w-full rounded-2xl mb-4 shadow-md">`;
@@ -140,116 +124,78 @@ function renderPerguntas(listaPerguntas) {
 
 function gerarComponenteInput(p) {
   const tipo = p.TipoInput.toLowerCase();
-  let wrapper = document.createElement("div");
-
-  // =========================
-  // RADIO / SELECT
-  // =========================
+  
+  // SELECT / RADIO
   if (tipo === "radio" || tipo === "select") {
-    const select = document.createElement("select");
-    select.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl";
-
+    const sel = document.createElement("select");
+    sel.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none";
     const opcoes = p.Opcoes.split(";");
-    select.innerHTML =
-      `<option value="">Selecionar...</option>` +
-      opcoes.map(o => `<option value="${o.trim()}">${o.trim()}</option>`).join("");
-
-    select.onchange = e => {
+    sel.innerHTML = `<option value="">Selecionar...</option>` + 
+                   opcoes.map(o => `<option value="${o.trim()}">${o.trim()}</option>`).join("");
+    sel.onchange = e => {
       APP_STATE.respostas[p.id] = e.target.value;
       verificarCondicionais(p.id, e.target.value);
     };
-
-    return select;
+    return sel;
   }
 
-  // =========================
-  // CHECKBOX GROUP ✅
-  // =========================
+  // CHECKBOX GROUP
   if (tipo === "checkboxgroup") {
+    const wrap = document.createElement("div");
     const opcoes = p.Opcoes.split(";");
     APP_STATE.respostas[p.id] = [];
-
-    opcoes.forEach(opcao => {
+    opcoes.forEach(o => {
       const label = document.createElement("label");
-      label.className = "flex items-center gap-3 mb-2 text-sm";
-
-      const chk = document.createElement("input");
-      chk.type = "checkbox";
-      chk.value = opcao.trim();
-      chk.className = "w-4 h-4";
-
-      chk.onchange = () => {
+      label.className = "flex items-center gap-3 mb-3 text-sm bg-gray-50 p-3 rounded-xl";
+      label.innerHTML = `<input type="checkbox" value="${o.trim()}" class="w-5 h-5"> ${o.trim()}`;
+      label.querySelector('input').onchange = (e) => {
         const arr = APP_STATE.respostas[p.id];
-        if (chk.checked) {
-          arr.push(chk.value);
-        } else {
-          const idx = arr.indexOf(chk.value);
-          if (idx > -1) arr.splice(idx, 1);
-        }
+        if (e.target.checked) arr.push(e.target.value);
+        else arr.splice(arr.indexOf(e.target.value), 1);
         verificarCondicionais(p.id, arr.join(";"));
       };
-
-      label.appendChild(chk);
-      label.appendChild(document.createTextNode(opcao.trim()));
-      wrapper.appendChild(label);
+      wrap.appendChild(label);
     });
-
-    return wrapper;
+    return wrap;
   }
 
-  // =========================
-  // TEXTAREA
-  // =========================
-  if (tipo === "textarea") {
-    const ta = document.createElement("textarea");
-    ta.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl h-24";
-    ta.onchange = e => APP_STATE.respostas[p.id] = e.target.value;
-    return ta;
-  }
-
-  // =========================
-  // FILE (imagem)
-  // =========================
+  // FILE (CÂMERA)
   if (tipo === "file") {
-    const file = document.createElement("input");
-    file.type = "file";
-    file.accept = "image/*";
-
-    file.onchange = e => {
+    const inp = document.createElement("input");
+    inp.type = "file";
+    inp.accept = "image/*";
+    inp.capture = "environment"; // Abre a câmera direto no Android/iOS
+    inp.className = "text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700";
+    inp.onchange = e => {
       const reader = new FileReader();
       reader.onload = () => {
-        APP_STATE.respostas[p.id] = reader.result; // base64
+        APP_STATE.fotos[p.id] = reader.result; // Salva no objeto de fotos
+        // Se for AA, captura GPS no momento da foto
+        if (APP_STATE.tipoRoteiro === 'aa') capturarGPSPergunta(p.id);
       };
       reader.readAsDataURL(e.target.files[0]);
     };
-
-    return file;
+    return inp;
   }
 
-  // =========================
-  // PADRÃO
-  // =========================
-  const input = document.createElement("input");
-  input.type = tipo;
-  input.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl";
-  input.onchange = e => APP_STATE.respostas[p.id] = e.target.value;
-  return input;
+  // DEFAULT (TEXT, NUMBER, TEXTAREA)
+  const inp = tipo === "textarea" ? document.createElement("textarea") : document.createElement("input");
+  inp.type = tipo;
+  inp.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl";
+  if (tipo === "textarea") inp.classList.add("h-24");
+  inp.onchange = e => APP_STATE.respostas[p.id] = e.target.value;
+  return inp;
 }
 
-
 function verificarCondicionais(idPai, valor) {
-  // Procura no roteiro selecionado perguntas que dependem desta
   APP_STATE.roteiroSelecionado.forEach(p => {
     if (p.Pai === idPai) {
       const elDiv = document.getElementById(`div_pergunta_${p.id}`);
       if (elDiv) {
-        // Se o valor selecionado for igual à condição (ex: "Sim" ou "Outro")
-        if (valor === p.Condicao) {
-          elDiv.classList.remove("hidden");
-        } else {
-          elDiv.classList.add("hidden");
-          delete APP_STATE.respostas[p.id]; // Limpa resposta se esconder
-        }
+        // Suporta checkbox: se o valor da condição estiver contido na resposta
+        const mostrar = valor.includes(p.Condicao);
+        elDiv.classList.toggle("hidden", !mostrar);
+        if (!mostrar) delete APP_STATE.respostas[p.id];
       }
     }
   });
@@ -257,69 +203,46 @@ function verificarCondicionais(idPai, valor) {
 
 // ---------------- GPS ----------------
 function capturarGPS(tipo) {
-  if (!navigator.geolocation) return;
   navigator.geolocation.getCurrentPosition(pos => {
     const lat = pos.coords.latitude.toFixed(6);
     const lng = pos.coords.longitude.toFixed(6);
-    if (tipo === "inicial") {
-      APP_STATE.geolocalizacao_inicio = { lat, lng };
-      document.getElementById("display-coords-inicial").textContent = `${lat}, ${lng}`;
-    }
+    if (tipo === "inicial") APP_STATE.geolocalizacao_inicio = { lat, lng };
   }, null, { enableHighAccuracy: true });
 }
-function voltarSelecaoRoteiro() {
-  showScreen("screen-select-roteiro");
-}
-window.voltarSelecaoRoteiro = voltarSelecaoRoteiro;
 
-// ---------------- SALVAR ----------------
+function capturarGPSPergunta(perguntaId) {
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude.toFixed(6);
+    const lng = pos.coords.longitude.toFixed(6);
+    APP_STATE.respostas[`gps_${perguntaId}`] = `${lat},${lng}`;
+  });
+}
+
+// ---------------- SALVAMENTO FINAL ----------------
 async function finalizarVistoria() {
-  const historico = JSON.parse(localStorage.getItem("vistorias_cedae") || "[]");
-
-  const novaVistoria = {
-    id: Date.now(),
-    avaliador: APP_STATE.avaliador,
-    colaborador_gla: APP_STATE.colaborador_gla,
-    local: APP_STATE.local,
-    sublocal: document.getElementById("sublocal_select")?.value || "",
-    data_visita: APP_STATE.data_visita,
-    data_registro: new Date().toLocaleString("pt-BR"),
-    tipo_roteiro: APP_STATE.tipoRoteiro,
-    coordenadas: APP_STATE.geolocalizacao_inicio,
-    respostas: APP_STATE.respostas
-  };
-
-  historico.push(novaVistoria);
-  localStorage.setItem("vistorias_cedae", JSON.stringify(historico));
-
-  showMessage("Vistoria salva com sucesso!", true);
+  try {
+    // 1. Chamar a função do seu novo INDEXEDDB.JS
+    // Passamos o roteiro atual para ele saber quais perguntas salvar
+    const idGerado = await finalizarVisitaBanco(APP_STATE.roteiroSelecionado);
+    
+    showMessage(`Vistoria #${idGerado} salva no banco de dados!`, true);
+    
+    // Opcional: Voltar ao início após 2 segundos
+    setTimeout(() => location.reload(), 2000);
+  } catch (err) {
+    console.error(err);
+    showMessage("Erro ao salvar no banco!");
+  }
 }
-
-// ===============================
-// EXPORTAÇÃO EXCEL DA VISITA
-// ===============================
-async function finalizarEBaixarExcel() {
-  await finalizarVistoria();
-  await exportarExcelVisita();
-}
-window.finalizarEBaixarExcel = finalizarEBaixarExcel;
-
 
 // ---------------- INIT ----------------
 function initApp() {
   const selLocal = document.getElementById("local");
-  selLocal.innerHTML = LOCAIS_VISITA.map(l => `<option>${l}</option>`).join("");
+  if (selLocal) {
+    selLocal.innerHTML = LOCAIS_VISITA.map(l => `<option>${l}</option>`).join("");
+  }
   showScreen("screen-cadastro");
 }
-
-// Vincula funções ao Window para os botões do HTML funcionarem
-window.initCadastro = initCadastro;
-window.selectRoteiro = selectRoteiro;
-window.finalizarVistoria = finalizarVistoria;
-window.showScreen = showScreen;
-window.voltarSelecaoRoteiro = voltarSelecaoRoteiro;
-window.finalizarEBaixarExcel = finalizarEBaixarExcel;
-
 
 document.addEventListener("DOMContentLoaded", initApp);
 
