@@ -2,107 +2,32 @@
    STYLE.CSS – Estilos Blindados (CEDAE SIGAD)
    ============================================================ */
 
-:root {
-  --cedae-azul: #0C3C78;
-  --cedae-azul-claro: #3b82f6;
-  --bg-cinza: #f9fafb;
+/* Cores Oficiais e Utilitários */
+:root { --cedae-blue: #0C3C78; --cedae-gold: #FFD700; }
+
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 0; }
+
+.btn-cedae { 
+    background-color: var(--cedae-blue) !important; 
+    color: white !important; 
+    padding: 14px; 
+    border-radius: 10px; 
+    width: 100%; 
+    font-weight: bold; 
+    border: none; 
+    cursor: pointer;
+    transition: background 0.3s;
 }
 
-body {
-  background-color: var(--bg-cinza);
-  -webkit-tap-highlight-color: transparent;
-  font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  margin: 0;
-  padding: 0;
+.card { background: white; padding: 20px; border-radius: 15px; shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid #e5e7eb; }
+
+.hidden { display: none !important; }
+
+/* Efeito de Pulso (GPS Monitorando) */
+.pulse-container { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.15); padding: 8px 12px; border-radius: 20px; }
+.pulse-dot { width: 10px; height: 10px; background-color: #4ade80; border-radius: 50%; position: relative; }
+.pulse-dot::after {
+    content: ""; position: absolute; width: 100%; height: 100%; background-color: #4ade80;
+    border-radius: 50%; animation: pulse 2s infinite; opacity: 0.6;
 }
-
-/* Fallback para o utilitário 'hidden' do Tailwind */
-.hidden {
-  display: none !important;
-}
-
-/* Estilização dos Cards (Substitui as classes do Tailwind se o CDN falhar) */
-.bg-white { background-color: #ffffff; }
-.rounded-xl { border-radius: 12px; }
-.shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-.p-6 { padding: 1.5rem; }
-.mb-4 { margin-bottom: 1rem; }
-
-/* Botão Institucional CEDAE */
-.btn-cedae {
-  background-color: var(--cedae-azul);
-  color: white;
-  padding: 12px 24px;
-  border-radius: 8px;
-  border: none;
-  font-weight: bold;
-  cursor: pointer;
-  width: 100%;
-  transition: background 0.2s ease;
-}
-
-.btn-cedae:hover {
-  background-color: #082d5a;
-}
-
-/* Inputs e Selects */
-input, select, textarea {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 15px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  box-sizing: border-box; /* Crucial para mobile */
-}
-
-input:focus, select:focus {
-  border-color: var(--cedae-azul-claro);
-  outline: none;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-}
-
-/* Mapa */
-#mapa_local {
-  height: 400px;
-  width: 100%;
-  border-radius: 12px;
-  border: 2px solid white;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-}
-
-/* Modal e Camera */
-#camera-modal {
-  background-color: rgba(0,0,0,0.9);
-  backdrop-filter: blur(4px);
-}
-
-#video {
-  width: 100%;
-  max-width: 500px;
-  border-radius: 12px;
-  background: #000;
-}
-
-/* Mensagem Superior */
-#message-box {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 9999;
-  padding: 15px 30px;
-  border-radius: 50px;
-  transition: all 0.3s ease;
-}
-
-/* Estilo para as fotos no formulário */
-.foto-preview {
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 2px solid white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-
+@keyframes pulse { 0% { transform: scale(1); opacity: 0.6; } 100% { transform: scale(3); opacity: 0; } }
