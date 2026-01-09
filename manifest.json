@@ -1,11 +1,13 @@
 {
   "name": "Supervisão Ambiental CEDAE",
-  "short_name": "CEDAE Offline",
-  "description": "Coleta de dados ambientais com operação 100% offline.",
+  "short_name": "CEDAE PWA",
+  "description": "Coleta de dados georreferenciados com operação 100% offline para vistorias técnicas.",
   "start_url": "./index.html",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#0C3C78",
   "theme_color": "#0C3C78",
+  "id": "com.cedae.supervisao.ambiental",
   "icons": [
     {
       "src": "icon.png",
@@ -17,16 +19,16 @@
       "src": "icon.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "maskable"
     }
   ],
   "screenshots": [
     {
-      "src": "icon.png", 
+      "src": "icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Tela Inicial do Formulário"
+      "label": "Interface de Vistoria CEDAE"
     }
   ]
 }
