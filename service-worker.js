@@ -1,8 +1,11 @@
 // =============================================
 // SERVICE WORKER – PWA Supervisão Ambiental CEDAE
+// Versão: v14 - Foco em Georreferenciamento Offline
 // =============================================
 
-const CACHE_NAME = "cedae-pwa-v11"; // Incrementado para v11
+const CACHE_NAME = "cedae-pwa-v14"; 
+
+// Arquivos essenciais para o funcionamento sem internet
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -14,22 +17,21 @@ const APP_SHELL = [
   "./icon.png"
 ];
 
-// INSTALL – Cache agressivo
+// 1. INSTALL – Cache Inicial (Obrigatório)
 self.addEventListener("install", (event) => {
-  console.log("SW: Instalando nova versão...");
+  console.log("SW: Cacheando núcleo do app...");
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Usamos cache.addAll para o núcleo. 
-      // DICA: Se um desses arquivos falhar (404), o SW não instala.
+      // Se um desses arquivos falhar (404), o SW não instala.
       return cache.addAll(APP_SHELL);
     })
   );
   self.skipWaiting();
 });
 
-// ACTIVATE – Limpeza de cache antigo
+// 2. ACTIVATE – Limpeza de versões obsoletas
 self.addEventListener("activate", (event) => {
-  console.log("SW: Versão ativa.");
+  console.log("SW: Limpando caches antigos...");
   event.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
@@ -41,29 +43,28 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// FETCH – Estratégia "Cache First" com correção de clone
+// 3. FETCH – Estratégia "Cache First" Otimizada
+// Prioriza o que já está baixado para garantir velocidade instantânea
 self.addEventListener("fetch", (event) => {
   const request = event.request;
 
+  // Ignorar requisições de extensões ou protocolos não-http
   if (!request.url.startsWith('http')) return;
 
   event.respondWith(
     caches.match(request).then((cacheRes) => {
-      // 1. Se está no cache, retorna imediatamente
+      // Retorna o cache se encontrar (mesmo offline)
       if (cacheRes) return cacheRes;
 
-      // 2. Se não está, busca na rede
+      // Se não estiver no cache, busca na rede e salva para a próxima vez
       return fetch(request)
         .then((networkRes) => {
-          // Validação da resposta
+          // Só salva no cache se a resposta for válida
           if (!networkRes || networkRes.status !== 200) {
             return networkRes;
           }
 
-          // CORREÇÃO: Clonamos IMEDIATAMENTE antes de qualquer outra ação
           const responseToCache = networkRes.clone();
-
-          // Salvamento assíncrono no cache
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(request, responseToCache);
           });
@@ -71,18 +72,12 @@ self.addEventListener("fetch", (event) => {
           return networkRes;
         })
         .catch((err) => {
-          console.error("SW: Erro na busca (Offline):", err);
-          // Fallback para navegação
+          // Se falhar a rede (OFFLINE TOTAL) e não tiver cache:
           if (request.mode === 'navigate') {
             return caches.match("./index.html");
           }
+          console.error("SW: Recurso não disponível offline:", request.url);
         });
     })
   );
-});
-
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
-    self.skipWaiting();
-  }
 });
