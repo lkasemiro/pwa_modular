@@ -140,45 +140,102 @@ function renderPerguntas(listaPerguntas) {
 
 function gerarComponenteInput(p) {
   const tipo = p.TipoInput.toLowerCase();
-  let input;
+  let wrapper = document.createElement("div");
 
+  // =========================
+  // RADIO / SELECT
+  // =========================
   if (tipo === "radio" || tipo === "select") {
-    input = document.createElement("select");
-    input.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500";
+    const select = document.createElement("select");
+    select.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl";
+
     const opcoes = p.Opcoes.split(";");
-    input.innerHTML = `<option value="">Selecionar...</option>` + 
+    select.innerHTML =
+      `<option value="">Selecionar...</option>` +
       opcoes.map(o => `<option value="${o.trim()}">${o.trim()}</option>`).join("");
-  } 
-  else if (tipo === "textarea") {
-    input = document.createElement("textarea");
-    input.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none h-24";
-  }
-  else if (tipo === "file") {
-    input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*";
-    input.className = "w-full text-xs text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100";
-  }
-  else {
-    input = document.createElement("input");
-    input.type = tipo === "number" ? "number" : (tipo === "date" ? "date" : "text");
-    input.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none";
+
+    select.onchange = e => {
+      APP_STATE.respostas[p.id] = e.target.value;
+      verificarCondicionais(p.id, e.target.value);
+    };
+
+    return select;
   }
 
-  input.onchange = (e) => {
-    APP_STATE.respostas[p.id] = e.target.value;
-    verificarCondicionais(p.id, e.target.value);
-    
-    // GPS por pergunta no roteiro AA
-    if (APP_STATE.tipoRoteiro === 'aa') {
-      navigator.geolocation.getCurrentPosition(pos => {
-        APP_STATE.respostas[`gps_${p.id}`] = `${pos.coords.latitude},${pos.coords.longitude}`;
-      });
-    }
-  };
+  // =========================
+  // CHECKBOX GROUP ✅
+  // =========================
+  if (tipo === "checkboxgroup") {
+    const opcoes = p.Opcoes.split(";");
+    APP_STATE.respostas[p.id] = [];
 
+    opcoes.forEach(opcao => {
+      const label = document.createElement("label");
+      label.className = "flex items-center gap-3 mb-2 text-sm";
+
+      const chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.value = opcao.trim();
+      chk.className = "w-4 h-4";
+
+      chk.onchange = () => {
+        const arr = APP_STATE.respostas[p.id];
+        if (chk.checked) {
+          arr.push(chk.value);
+        } else {
+          const idx = arr.indexOf(chk.value);
+          if (idx > -1) arr.splice(idx, 1);
+        }
+        verificarCondicionais(p.id, arr.join(";"));
+      };
+
+      label.appendChild(chk);
+      label.appendChild(document.createTextNode(opcao.trim()));
+      wrapper.appendChild(label);
+    });
+
+    return wrapper;
+  }
+
+  // =========================
+  // TEXTAREA
+  // =========================
+  if (tipo === "textarea") {
+    const ta = document.createElement("textarea");
+    ta.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl h-24";
+    ta.onchange = e => APP_STATE.respostas[p.id] = e.target.value;
+    return ta;
+  }
+
+  // =========================
+  // FILE (imagem)
+  // =========================
+  if (tipo === "file") {
+    const file = document.createElement("input");
+    file.type = "file";
+    file.accept = "image/*";
+
+    file.onchange = e => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        APP_STATE.respostas[p.id] = reader.result; // base64
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    };
+
+    return file;
+  }
+
+  // =========================
+  // PADRÃO
+  // =========================
+  const input = document.createElement("input");
+  input.type = tipo;
+  input.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl";
+  input.onchange = e => APP_STATE.respostas[p.id] = e.target.value;
   return input;
 }
+
 
 function verificarCondicionais(idPai, valor) {
   // Procura no roteiro selecionado perguntas que dependem desta
@@ -210,20 +267,43 @@ function capturarGPS(tipo) {
     }
   }, null, { enableHighAccuracy: true });
 }
+function voltarSelecaoRoteiro() {
+  showScreen("screen-select-roteiro");
+}
+window.voltarSelecaoRoteiro = voltarSelecaoRoteiro;
 
 // ---------------- SALVAR ----------------
-function finalizarVistoria() {
+async function finalizarVistoria() {
   const historico = JSON.parse(localStorage.getItem("vistorias_cedae") || "[]");
+
   const novaVistoria = {
-    ...APP_STATE,
     id: Date.now(),
-    data_registro: new Date().toLocaleString()
+    avaliador: APP_STATE.avaliador,
+    colaborador_gla: APP_STATE.colaborador_gla,
+    local: APP_STATE.local,
+    sublocal: document.getElementById("sublocal_select")?.value || "",
+    data_visita: APP_STATE.data_visita,
+    data_registro: new Date().toLocaleString("pt-BR"),
+    tipo_roteiro: APP_STATE.tipoRoteiro,
+    coordenadas: APP_STATE.geolocalizacao_inicio,
+    respostas: APP_STATE.respostas
   };
+
   historico.push(novaVistoria);
   localStorage.setItem("vistorias_cedae", JSON.stringify(historico));
-  showMessage("Vistoria finalizada e salva!", true);
-  setTimeout(() => location.reload(), 2000);
+
+  showMessage("Vistoria salva com sucesso!", true);
 }
+
+// ===============================
+// EXPORTAÇÃO EXCEL DA VISITA
+// ===============================
+async function finalizarEBaixarExcel() {
+  await finalizarVistoria();
+  await exportarExcelVisita();
+}
+window.finalizarEBaixarExcel = finalizarEBaixarExcel;
+
 
 // ---------------- INIT ----------------
 function initApp() {
@@ -237,6 +317,9 @@ window.initCadastro = initCadastro;
 window.selectRoteiro = selectRoteiro;
 window.finalizarVistoria = finalizarVistoria;
 window.showScreen = showScreen;
+window.voltarSelecaoRoteiro = voltarSelecaoRoteiro;
+window.finalizarEBaixarExcel = finalizarEBaixarExcel;
+
 
 document.addEventListener("DOMContentLoaded", initApp);
 
