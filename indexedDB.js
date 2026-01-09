@@ -1,17 +1,15 @@
 // =====================================================
-// indexedDB.js – BANCO UNIFICADO PARA GERAL / PGE / AA
+// indexedDB.js – BANCO COM SUPORTE A GEOLOCALIZAÇÃO
 // =====================================================
 
 let dbPromise = null;
 
-// -----------------------------------------------------
-// ABRIR BANCO
-// -----------------------------------------------------
 function openDB() {
   if (dbPromise) return dbPromise;
 
   dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open("cedae_pwa_db", 2);
+    // Versão 3 para suportar a nova estrutura de coordenadas
+    const request = indexedDB.open("cedae_pwa_db", 3);
 
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
@@ -19,13 +17,16 @@ function openDB() {
       if (!db.objectStoreNames.contains("respostas")) {
         const store = db.createObjectStore("respostas", { keyPath: "key" });
         store.createIndex("tipo", "tipo", { unique: false });
-        store.createIndex("idPergunta", "idPergunta", { unique: false });
       }
 
       if (!db.objectStoreNames.contains("fotos")) {
         const store = db.createObjectStore("fotos", { keyPath: "fotoId" });
         store.createIndex("tipo", "tipo", { unique: false });
-        store.createIndex("idPergunta", "idPergunta", { unique: false });
+      }
+
+      // NOVO: Store para armazenar o cabeçalho das visitas realizadas
+      if (!db.objectStoreNames.contains("historico_visitas")) {
+        db.createObjectStore("historico_visitas", { keyPath: "id" });
       }
     };
 
@@ -37,20 +38,13 @@ function openDB() {
 }
 
 // -----------------------------------------------------
-// CHAMADO PELO app.js (pode ser NO-OP além de abrir DB)
-// -----------------------------------------------------
-async function initIndexedDB(tipo) {
-  await openDB();
-}
-
-// -----------------------------------------------------
-// SALVAR RESPOSTA (autosave)
+// SALVAR RESPOSTA (com geolocalização no objeto se necessário)
 // -----------------------------------------------------
 async function saveAnswerToDB(idPergunta, valor) {
   const tipo = APP_STATE.tipoRoteiro;
   const key = `${tipo}_${idPergunta}`;
-
   const db = await openDB();
+
   return new Promise((resolve, reject) => {
     const tx = db.transaction("respostas", "readwrite");
     const store = tx.objectStore("respostas");
@@ -59,7 +53,8 @@ async function saveAnswerToDB(idPergunta, valor) {
       key,
       tipo,
       idPergunta,
-      valor
+      valor,
+      timestamp: new Date().toISOString()
     });
 
     tx.oncomplete = () => resolve(true);
@@ -68,162 +63,86 @@ async function saveAnswerToDB(idPergunta, valor) {
 }
 
 // -----------------------------------------------------
-// SALVAR FOTO
+// FINALIZAR VISITA: Consolida dados e Coordenadas
 // -----------------------------------------------------
-async function savePhotoToDB(fotoId, blob, idPergunta) {
-  const tipo = APP_STATE.tipoRoteiro;
-
+async function finalizarERegistrarVisita() {
   const db = await openDB();
+  
+  const visitaCompleta = {
+    id: Date.now(),
+    avaliador: APP_STATE.avaliador,
+    local: APP_STATE.local,
+    data: APP_STATE.data_visita || new Date().toLocaleDateString('pt-BR'),
+    tipo: APP_STATE.tipoRoteiro,
+    // Puxa as coordenadas capturadas silenciosamente no app.js
+    coord_inicial: APP_STATE.geolocalizacao_inicio,
+    coord_sublocal: APP_STATE.geolocalizacao_sublocal,
+    respostas: APP_STATE.respostas
+  };
+
   return new Promise((resolve, reject) => {
-    const tx = db.transaction("fotos", "readwrite");
-    const store = tx.objectStore("fotos");
-
-    store.put({
-      fotoId,
-      tipo,
-      idPergunta,
-      blob
-    });
-
-    tx.oncomplete = () => resolve(true);
+    const tx = db.transaction("historico_visitas", "readwrite");
+    tx.objectStore("historico_visitas").add(visitaCompleta);
+    
+    tx.oncomplete = () => {
+        // Opcional: Salva no localStorage para a aba de histórico rápido
+        const histRapido = JSON.parse(localStorage.getItem("historico_vistorias") || "[]");
+        histRapido.push(visitaCompleta);
+        localStorage.setItem("historico_vistorias", JSON.stringify(histRapido));
+        resolve(visitaCompleta);
+    };
     tx.onerror = () => reject(tx.error);
   });
 }
 
 // -----------------------------------------------------
-// BUSCAR TODAS AS FOTOS *DO TIPO ATUAL*
+// GERAÇÃO DE DADOS PARA EXCEL (Com Coordenadas)
 // -----------------------------------------------------
-async function getAllPhotosFromDB() {
-  const tipo = APP_STATE.tipoRoteiro;
+async function exportarDadosParaExcel() {
   const db = await openDB();
-
+  
   return new Promise((resolve, reject) => {
-    const tx = db.transaction("fotos", "readonly");
-    const store = tx.objectStore("fotos");
-    const index = store.index("tipo");
-    const req = index.getAll(IDBKeyRange.only(tipo));
+    const tx = db.transaction("historico_visitas", "readonly");
+    const store = tx.objectStore("historico_visitas");
+    const req = store.getAll();
 
-    req.onsuccess = () => resolve(req.result || []);
+    req.onsuccess = () => {
+      const visitas = req.result;
+      
+      // Mapeia os dados para o formato de colunas do Excel
+      const dadosPlanilha = visitas.map(v => {
+        const linha = {
+          "Data": v.data,
+          "Avaliador": v.avaliador,
+          "Unidade/Local": v.local,
+          "Roteiro": v.tipo.toUpperCase(),
+          "Lat Inicial": v.coord_inicial?.lat || "N/A",
+          "Lon Inicial": v.coord_inicial?.lng || "N/A",
+          "Lat Sublocal": v.coord_sublocal?.lat || "N/A",
+          "Lon Sublocal": v.coord_sublocal?.lng || "N/A"
+        };
+
+        // Adiciona cada resposta como uma coluna nova
+        Object.keys(v.respostas).forEach(key => {
+          linha[`Pergunta_${key}`] = v.respostas[key];
+        });
+
+        return linha;
+      });
+
+      resolve(dadosPlanilha);
+    };
     req.onerror = () => reject(req.error);
   });
 }
 
 // -----------------------------------------------------
-// APAGAR SOMENTE 1 FORMULÁRIO (Geral / PGE / AA)
-// -----------------------------------------------------
-async function clearFormData(tipo) {
-  const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(["respostas", "fotos"], "readwrite");
-
-    const respostasIndex = tx.objectStore("respostas").index("tipo");
-    const fotosIndex = tx.objectStore("fotos").index("tipo");
-
-    respostasIndex.openCursor(IDBKeyRange.only(tipo)).onsuccess = (e) => {
-      const cursor = e.target.result;
-      if (cursor) {
-        cursor.delete();
-        cursor.continue();
-      }
-    };
-
-    fotosIndex.openCursor(IDBKeyRange.only(tipo)).onsuccess = (e) => {
-      const cursor = e.target.result;
-      if (cursor) {
-        cursor.delete();
-        cursor.continue();
-      }
-    };
-
-    tx.oncomplete = () => resolve(true);
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-// -----------------------------------------------------
-// APAGAR TUDO (Finalizar visita geral)
+// LIMPAR DADOS APÓS EXPORTAÇÃO (Segurança)
 // -----------------------------------------------------
 async function clearAllData() {
   const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(["respostas", "fotos"], "readwrite");
-    tx.objectStore("respostas").clear();
-    tx.objectStore("fotos").clear();
-
-    tx.oncomplete = () => resolve(true);
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-// -----------------------------------------------------
-// BUSCAR TODAS AS RESPOSTAS E FOTOS (para XLSX Único)
-// -----------------------------------------------------
-async function getAllAnswersAndPhotos() {
-  const db = await openDB();
-
-  const result = {
-    geral: { respostas: {}, fotos: {} },
-    pge: { respostas: {}, fotos: {} },
-    aa: { respostas: {}, fotos: {} }
-  };
-
-  await new Promise((resolve, reject) => {
-    const tx = db.transaction("respostas", "readonly");
-    const store = tx.objectStore("respostas");
-    const req = store.getAll();
-
-    req.onsuccess = () => {
-      (req.result || []).forEach((r) => {
-        if (!result[r.tipo]) return;
-        result[r.tipo].respostas[r.idPergunta] = r.valor;
-      });
-      resolve();
-    };
-    req.onerror = () => reject(req.error);
-  });
-
-  await new Promise((resolve, reject) => {
-    const tx = db.transaction("fotos", "readonly");
-    const store = tx.objectStore("fotos");
-    const req = store.getAll();
-
-    req.onsuccess = () => {
-      (req.result || []).forEach((f) => {
-        if (!result[f.tipo]) return;
-        if (!result[f.tipo].fotos[f.idPergunta]) {
-          result[f.tipo].fotos[f.idPergunta] = [];
-        }
-        result[f.tipo].fotos[f.idPergunta].push(f);
-      });
-      resolve();
-    };
-    req.onerror = () => reject(req.error);
-  });
-
-  return result;
-}
-
-// -----------------------------------------------------
-// BUSCAR SOMENTE RESPOSTAS DE UM TIPO (se quiser CSV por tipo)
-// -----------------------------------------------------
-async function getAnswersMapFromDB(tipo) {
-  const db = await openDB();
-
-  return new Promise((resolve, reject) => {
-    const respostas = {};
-
-    const tx = db.transaction("respostas", "readonly");
-    const store = tx.objectStore("respostas").index("tipo");
-
-    const req = store.getAll(IDBKeyRange.only(tipo));
-    req.onsuccess = () => {
-      (req.result || []).forEach((r) => {
-        respostas[r.idPergunta] = r.valor;
-      });
-      resolve(respostas);
-    };
-    req.onerror = () => reject(req.error);
-  });
+  const tx = db.transaction(["respostas", "fotos"], "readwrite");
+  tx.objectStore("respostas").clear();
+  tx.objectStore("fotos").clear();
+  return new Promise(r => tx.oncomplete = () => r(true));
 }
