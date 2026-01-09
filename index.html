@@ -1,95 +1,141 @@
-<body class="bg-gray-100 text-gray-900">
-  <div id="message-box" class="hidden"></div>
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vistoria Ambiental CEDAE</title>
+    
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="shortcut icon" href="icon.png" type="image/png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0C3C78">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+</head>
 
-  <!-- HEADER -->
-  <header class="bg-[#0C3C78] text-white p-6 rounded-b-3xl shadow-xl">
-    <div class="flex justify-between items-center">
-      <div>
-        <h1 class="text-xl font-bold">Vistoria Ambiental</h1>
-        <p class="text-blue-200 text-xs">CEDAE - Supervisão Técnica</p>
-      </div>
-      <div class="bg-white/10 px-3 py-1 rounded-full flex items-center gap-2">
-        <span class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-        <span class="text-[10px] font-mono font-bold">GPS ATIVO</span>
-      </div>
-    </div>
-  </header>
+<body class="bg-gray-100 text-gray-900 font-sans antialiased select-none">
 
-  <!-- NAV -->
-  <nav class="flex px-6 mt-4 gap-4">
-    <button onclick="showScreen('screen-cadastro')" class="flex-1 pb-2 border-b-4 border-[#0C3C78] font-bold text-[#0C3C78]">
-      Vistoria
-    </button>
-    <button onclick="showScreen('screen-historico')" class="flex-1 pb-2 border-b-4 border-transparent text-gray-400 font-bold">
-      Histórico
-    </button>
-  </nav>
+    <div id="message-box" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 p-4 rounded-xl shadow-2xl text-white font-bold transition-all duration-300"></div>
 
-  <!-- MAIN -->
-  <main class="p-6 space-y-6">
-
-    <!-- CADASTRO -->
-    <section id="screen-cadastro" class="space-y-4">
-      <div class="bg-white p-5 rounded-2xl shadow">
-        <h2 class="font-bold text-gray-700 mb-4 flex items-center gap-2">
-          📍 Localização e Dados
-        </h2>
-
-        <div class="space-y-3">
-          <input id="avaliador" placeholder="Nome do Avaliador" class="w-full p-3 border rounded-lg">
-          <select id="local" class="w-full p-3 border rounded-lg bg-white"></select>
-          <input type="date" id="data_visita" class="w-full p-3 border rounded-lg">
+    <header class="bg-[#0C3C78] text-white p-6 rounded-b-3xl shadow-xl sticky top-0 z-40">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold tracking-tight">Vistoria Ambiental</h1>
+                <p class="text-blue-200 text-xs opacity-90">CEDAE - Supervisão Técnica</p>
+            </div>
+            <div class="bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/5">
+                <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                <span class="text-[10px] font-mono font-bold tracking-widest">GPS ATIVO</span>
+            </div>
         </div>
+    </header>
 
-        <div class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-          <p class="text-[11px] font-mono text-blue-700">
-            Coordenadas capturadas automaticamente ao iniciar a vistoria.
-          </p>
-        </div>
-
-        <button id="btn-cadastro-continuar" class="mt-5 w-full bg-[#0C3C78] text-white py-3 rounded-xl font-bold">
-          PRÓXIMO: SELECIONAR ROTEIRO
+    <nav class="flex px-6 mt-4 gap-4 sticky top-[88px] bg-gray-100/80 backdrop-blur-md z-30 py-2">
+        <button id="btn-form" onclick="showScreen('screen-cadastro')" 
+            class="flex-1 pb-2 border-b-4 border-[#0C3C78] font-bold text-[#0C3C78] transition-all">
+            Vistoria
         </button>
-      </div>
+        <button id="btn-hist" onclick="exibirHistorico()" 
+            class="flex-1 pb-2 border-b-4 border-transparent text-gray-400 font-bold transition-all">
+            Histórico
+        </button>
+    </nav>
 
-      <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl text-xs text-amber-900">
-        <p class="font-bold mb-1 italic">📘 Guia Rápido de Campo</p>
-        <ul class="list-disc ml-4 space-y-1">
-          <li>GPS é coletado automaticamente.</li>
-          <li>Dados e fotos ficam salvos offline.</li>
-          <li>Relatório é gerado ao final.</li>
-        </ul>
-      </div>
-    </section>
+    <main class="p-6 space-y-6">
 
-    <!-- SELEÇÃO DE ROTEIRO -->
-    <section id="screen-select-roteiro" class="hidden space-y-4">
-      <h2 class="font-bold text-[#0C3C78]">Selecione o Roteiro</h2>
+        <section id="screen-cadastro" class="space-y-4 animate-in fade-in duration-300">
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                <h2 class="font-bold text-gray-800 mb-5 flex items-center gap-2 text-lg">
+                    📍 Localização e Dados
+                </h2>
 
-      <button onclick="selectRoteiro('pge')" class="w-full p-4 bg-white border-2 border-blue-100 rounded-xl text-left hover:border-blue-500 shadow">
-        <span class="block font-bold">Roteiro PGE</span>
-        <span class="text-xs text-gray-500 italic">
-          Coleta de dados ambientais com sublocal.
-        </span>
-      </button>
-    </section>
+                <div class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Avaliador</label>
+                        <input id="avaliador" type="text" placeholder="Nome Completo" 
+                            class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] focus:border-transparent outline-none transition-all">
+                    </div>
+                    
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Local da Vistoria</label>
+                        <select id="local" onchange="capturarGPS('inicial')" 
+                            class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] outline-none appearance-none"></select>
+                    </div>
 
-    <!-- HISTÓRICO -->
-    <section id="screen-historico" class="hidden space-y-3">
-      <h2 class="font-bold text-[#0C3C78]">Vistorias Recentes</h2>
-      <div id="lista-historico" class="text-sm text-gray-600 italic">
-        Nenhuma vistoria registrada neste dispositivo.
-      </div>
-    </section>
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Data</label>
+                        <input type="date" id="data_visita" 
+                            class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] outline-none">
+                    </div>
+                </div>
 
-    <!-- FORMULÁRIO -->
-    <section id="screen-formulario" class="hidden">
-      <div id="conteudo_formulario"></div>
-      <button onclick="finalizarVistoria()" class="mt-6 w-full bg-[#0C3C78] text-white py-3 rounded-xl font-bold">
-        FINALIZAR E GERAR RELATÓRIO
-      </button>
-    </section>
+                <div class="mt-6 p-4 bg-blue-50/50 rounded-2xl border border-blue-100 flex items-start gap-3">
+                    <span class="text-blue-500 mt-0.5 text-lg">📡</span>
+                    <div>
+                        <p class="text-[11px] font-mono text-blue-800 leading-tight">
+                            GPS capturado automaticamente:
+                        </p>
+                        <p id="display-coords-inicial" class="text-xs font-bold text-blue-900 font-mono mt-1">Aguardando local...</p>
+                    </div>
+                </div>
 
-  </main>
+                <button id="btn-cadastro-continuar" class="mt-6 w-full bg-[#0C3C78] text-white py-4 rounded-2xl font-bold shadow-lg active:scale-[0.98] transition-all">
+                    PRÓXIMO: SELECIONAR ROTEIRO
+                </button>
+            </div>
+
+            <div class="bg-amber-50 border border-amber-200 p-5 rounded-3xl text-xs text-amber-900 shadow-sm">
+                <p class="font-bold mb-2 flex items-center gap-2">
+                    <span class="text-sm">📘</span> Guia Rápido de Campo
+                </p>
+                <ul class="space-y-2 opacity-80">
+                    <li class="flex items-center gap-2">🟢 GPS coletado ao selecionar o local.</li>
+                    <li class="flex items-center gap-2">🟢 Dados salvos automaticamente offline.</li>
+                    <li class="flex items-center gap-2">🟢 Gerar Excel na aba Histórico.</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="screen-select-roteiro" class="hidden space-y-4 animate-in slide-in-from-right duration-300">
+            <h2 class="font-bold text-[#0C3C78] text-lg px-2">Selecione o Roteiro</h2>
+
+            <button onclick="selectRoteiro('pge')" 
+                class="w-full p-5 bg-white border-2 border-transparent rounded-3xl text-left hover:border-blue-500 shadow-sm active:bg-blue-50 transition-all flex justify-between items-center group">
+                <div>
+                    <span class="block font-bold text-gray-800 group-hover:text-blue-700 transition-colors">Roteiro PGE</span>
+                    <span class="text-[11px] text-gray-500 italic">Coleta de dados ambientais com sublocal.</span>
+                </div>
+                <span class="text-blue-300 text-xl">➔</span>
+            </button>
+        </section>
+
+        <section id="screen-historico" class="hidden space-y-4 animate-in slide-in-from-left duration-300">
+            <div class="flex justify-between items-center px-2">
+                <h2 class="font-bold text-[#0C3C78] text-lg">Vistorias Recentes</h2>
+                <button onclick="exibirHistorico()" class="text-[10px] font-bold text-blue-500 uppercase tracking-tighter">Atualizar</button>
+            </div>
+            <div id="lista-historico" class="space-y-3">
+                </div>
+        </section>
+
+        <section id="screen-formulario" class="hidden animate-in fade-in duration-300">
+            <div id="conteudo_formulario" class="space-y-4"></div>
+            
+            <button onclick="finalizarVistoria()" 
+                class="mt-8 w-full bg-[#0C3C78] text-white py-5 rounded-3xl font-bold shadow-xl active:scale-[0.98] transition-all flex justify-center items-center gap-2">
+                <span>💾</span> FINALIZAR E SALVAR
+            </button>
+        </section>
+
+    </main>
+
+    <script src="roteiros.js"></script>
+    <script src="indexedDB.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
