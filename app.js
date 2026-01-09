@@ -1,6 +1,6 @@
 // ===========================================
-// APP.JS – PWA SUPERVISÃO AMBIENTAL (V13.1)
-// Estável, Offline, Georreferenciado
+// APP.JS – PWA SUPERVISÃO AMBIENTAL (V14.0)
+// Estável, Sem Mapa, Com Filtros de Sublocal
 // ===========================================
 
 const LOCAIS_VISITA = [
@@ -16,12 +16,12 @@ const APP_STATE = {
   local: "",
   data_visita: "",
   tipoRoteiro: null,
-  roteiro: null,
+  roteiroFull: [],
+  roteiroFiltrado: [],
   respostas: {},
-  fotos: {},
-  geolocalizacao_inicio: { lat: null, lng: null },
-  geolocalizacao_sublocal: { lat: null, lng: null }
+  geolocalizacao_inicio: { lat: null, lng: null }
 };
+
 // ---------------- UI / NAVEGAÇÃO ----------------
 function showScreen(id) {
   ["screen-cadastro", "screen-select-roteiro", "screen-formulario", "screen-historico"]
@@ -36,7 +36,7 @@ function showMessage(msg, ok = false) {
   if (!box) return alert(msg);
   box.textContent = msg;
   box.className = `fixed top-4 left-1/2 -translate-x-1/2 p-4 rounded-xl shadow-xl z-50 
-    ${ok ? "bg-green-600" : "bg-red-500"} text-white font-bold`;
+    ${ok ? "bg-green-600" : "bg-red-500"} text-white font-bold transition-all`;
   box.classList.remove("hidden");
   setTimeout(() => box.classList.add("hidden"), 3000);
 }
@@ -44,69 +44,83 @@ function showMessage(msg, ok = false) {
 // ---------------- GEOLOCALIZAÇÃO ----------------
 function capturarGPS(tipo) {
   if (!navigator.geolocation) return;
-
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       const lat = pos.coords.latitude.toFixed(6);
       const lng = pos.coords.longitude.toFixed(6);
-
       if (tipo === "inicial") {
         APP_STATE.geolocalizacao_inicio = { lat, lng };
         const display = document.getElementById("display-coords-inicial");
         if (display) display.textContent = `${lat}, ${lng}`;
       }
-
-      if (tipo === "sublocal") {
-        APP_STATE.geolocalizacao_sublocal = { lat, lng };
-        console.log("📍 GPS sublocal:", lat, lng);
-      }
     },
     () => console.warn("GPS indisponível."),
-    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    { enableHighAccuracy: true, timeout: 10000 }
   );
 }
 
 // ---------------- CADASTRO ----------------
 function initCadastro() {
-  const btn = document.getElementById("btn-cadastro-continuar");
-  if (!btn) return;
+  const avaliador = document.getElementById("avaliador")?.value.trim();
+  const colaboradorGla = document.getElementById("colaborador_gla")?.value.trim();
+  const local = document.getElementById("local")?.value;
+  const data = document.getElementById("data_visita")?.value;
 
-  btn.onclick = () => {
-    const avaliador = document.getElementById("avaliador")?.value.trim();
-    const colaboradorGla = document.getElementById("colaborador_gla")?.value.trim(); // <-- CAPTURA
-    const local = document.getElementById("local")?.value;
-    const data = document.getElementById("data_visita")?.value;
+  if (!avaliador || !colaboradorGla || !local || local === "Selecionar Local..." || !data) {
+    return showMessage("Preencha todos os campos corretamente.", false);
+  }
 
-    if (!avaliador || !colaboradorGla || !local || local === "Selecionar Local..." || !data) {
-      return showMessage("Preencha todos os campos, incluindo o Colaborador GLA.", false);
-    }
+  APP_STATE.avaliador = avaliador;
+  APP_STATE.colaborador_gla = colaboradorGla;
+  APP_STATE.local = local;
+  APP_STATE.data_visita = data;
 
-    APP_STATE.avaliador = avaliador;
-    APP_STATE.colaborador_gla = colaboradorGla; // <-- SALVA NO ESTADO
-    APP_STATE.local = local;
-    APP_STATE.data_visita = data;
-
-    capturarGPS("inicial");
-    showScreen("screen-select-roteiro");
-  };
+  capturarGPS("inicial");
+  showScreen("screen-select-roteiro");
 }
 
 // ---------------- ROTEIRO ----------------
 function selectRoteiro(tipo) {
   const roteirosMap = {
     pge: typeof ROTEIRO_PGE !== "undefined" ? ROTEIRO_PGE : null,
-    geral: typeof ROTEIRO_GERAL !== "undefined" ? ROTEIRO_GERAL : null
+    geral: typeof ROTEIRO_GERAL !== "undefined" ? ROTEIRO_GERAL : null,
+    aa: typeof ROTEIRO_AA !== "undefined" ? ROTEIRO_AA : null
   };
 
   const roteiro = roteirosMap[tipo];
-  if (!roteiro) return showMessage("Roteiro não carregado.");
+  if (!roteiro) return showMessage("Roteiro não encontrado no arquivo.");
 
   APP_STATE.tipoRoteiro = tipo;
-  APP_STATE.roteiro = roteiro;
+  APP_STATE.roteiroFull = roteiro;
   APP_STATE.respostas = {};
 
-  renderFormulario();
+  const subBox = document.getElementById("sublocal_box");
+  
+  if (tipo === 'pge') {
+    subBox.classList.remove("hidden");
+    popularSublocaisPGE();
+  } else {
+    subBox.classList.add("hidden");
+    APP_STATE.roteiroFiltrado = APP_STATE.roteiroFull;
+    renderFormulario();
+  }
   showScreen("screen-formulario");
+}
+
+function popularSublocaisPGE() {
+  const subSelect = document.getElementById("sublocal_select");
+  // Filtra sublocais que pertencem ao Local escolhido no cadastro
+  const subs = [...new Set(APP_STATE.roteiroFull
+    .filter(p => p.Local === APP_STATE.local)
+    .map(p => p.Sublocal))];
+
+  subSelect.innerHTML = `<option value="">Selecionar Sublocal...</option>` + 
+    subs.map(s => `<option value="${s}">${s}</option>`).join("");
+
+  subSelect.onchange = (e) => {
+    APP_STATE.roteiroFiltrado = APP_STATE.roteiroFull.filter(p => p.Sublocal === e.target.value);
+    renderFormulario();
+  };
 }
 
 // ---------------- FORMULÁRIO ----------------
@@ -115,51 +129,71 @@ function renderFormulario() {
   if (!container) return;
   container.innerHTML = "";
 
-  APP_STATE.roteiro.forEach(p => {
+  APP_STATE.roteiroFiltrado.forEach(p => {
     const div = document.createElement("div");
-    div.className = "bg-white p-4 rounded-xl shadow-sm border-l-4 border-[#0C3C78] mb-4";
+    div.className = "bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-4 animate-in fade-in";
+
+    // Suporte para Imagem de Apoio do PGE
+    let imgHtml = "";
+    const imagem = p.ImagemApoio || p.Imagem_Apoio;
+    if (imagem && imagem.startsWith("data:image")) {
+        imgHtml = `<img src="${imagem}" class="w-full rounded-2xl mb-4 shadow-sm border border-gray-100">`;
+    }
+
+    const labelPergunta = p.Pergunta || p.pergunta;
 
     div.innerHTML = `
-      <label class="block font-bold text-gray-700 mb-2">${p.pergunta}</label>
+      ${imgHtml}
+      <label class="block font-bold text-gray-700 mb-3 text-sm">${labelPergunta}</label>
+      <div id="input_cont_${p.id}"></div>
     `;
 
-    let input;
+    const inputCont = div.querySelector(`#input_cont_${p.id}`);
+    inputCont.appendChild(criarCampoInput(p));
+    container.appendChild(div);
+  });
+}
 
-    if (p.tipo === "select" && Array.isArray(p.opcoes)) {
-      input = document.createElement("select");
-      input.className = "w-full border p-2 rounded-lg focus:ring-2 focus:ring-[#0C3C78]";
-      input.innerHTML = `<option value="">Selecionar...</option>` +
-        p.opcoes.map(o => `<option value="${o}">${o}</option>`).join("");
+function criarCampoInput(p) {
+    const tipo = (p.TipoInput || p.tipo || "text").toLowerCase();
+    const opcoesStr = p.Opcoes || p.opcoes || "";
+    
+    let input;
+    if (tipo === "radio" || tipo === "select") {
+        input = document.createElement("select");
+        input.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] outline-none";
+        const lista = opcoesStr.includes(";") ? opcoesStr.split(";") : ["Sim", "Não"];
+        input.innerHTML = `<option value="">Selecionar...</option>` + 
+            lista.map(o => `<option value="${o.trim()}">${o.trim()}</option>`).join("");
     } else {
-      input = document.createElement("input");
-      input.className = "w-full border p-2 rounded-lg focus:ring-2 focus:ring-[#0C3C78]";
+        input = document.createElement("input");
+        input.type = "text";
+        input.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] outline-none";
     }
 
     input.onchange = (e) => {
-      APP_STATE.respostas[p.id] = e.target.value;
-
-      // 🔥 GPS do sublocal de forma robusta
-      if (p.sublocal && p.sublocal !== "") {
-        capturarGPS("sublocal");
-      }
+        APP_STATE.respostas[p.id] = e.target.value;
+        // Lógica de GPS por pergunta para Roteiro de Acidentes (AA)
+        if (APP_STATE.tipoRoteiro === 'aa') {
+            navigator.geolocation.getCurrentPosition(pos => {
+                APP_STATE.respostas[`gps_${p.id}`] = `${pos.coords.latitude},${pos.coords.longitude}`;
+            });
+        }
     };
-
-    div.appendChild(input);
-    container.appendChild(div);
-  });
+    return input;
 }
 
 // ---------------- HISTÓRICO ----------------
 function salvarVistoriaNoHistorico() {
   const historico = JSON.parse(localStorage.getItem("historico_vistorias") || "[]");
-
   historico.push({
     id: Date.now(),
     local: APP_STATE.local,
     avaliador: APP_STATE.avaliador,
-    colaborador_gla: APP_STATE.colaborador_gla, // <-- INCLUI NO HISTÓRICO
+    colaborador_gla: APP_STATE.colaborador_gla,
     data: APP_STATE.data_visita,
-    coordenadas: APP_STATE.geolocalizacao_inicio
+    coordenadas: APP_STATE.geolocalizacao_inicio,
+    respostas: APP_STATE.respostas
   });
 
   localStorage.setItem("historico_vistorias", JSON.stringify(historico));
@@ -171,18 +205,18 @@ function exibirHistorico() {
   showScreen("screen-historico");
   const container = document.getElementById("lista-historico");
   if (!container) return;
-
   const visitas = JSON.parse(localStorage.getItem("historico_vistorias") || "[]");
 
   container.innerHTML = visitas.length === 0
-    ? `<p class="text-center text-gray-400 py-6 text-sm">Nenhuma vistoria registrada.</p>`
+    ? `<p class="text-center text-gray-400 py-10 text-sm italic">Nenhum registro encontrado.</p>`
     : visitas.reverse().map(v => `
-      <div class="bg-white p-4 rounded-xl shadow border-l-4 border-[#0C3C78] mb-3">
-        <p class="font-bold text-sm">${v.local}</p>
-        <p class="text-[11px] text-gray-500">
-          ${v.data} · ${v.avaliador}<br>
-          Lat: ${v.coordenadas.lat || "N/D"}
-        </p>
+      <div class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-3">
+        <div class="flex justify-between items-start mb-2">
+            <p class="font-bold text-[#0C3C78]">${v.local}</p>
+            <span class="text-[9px] bg-gray-100 px-2 py-1 rounded-full font-bold text-gray-500">${v.data}</span>
+        </div>
+        <p class="text-[11px] text-gray-500">Avaliador: ${v.avaliador}</p>
+        <p class="text-[11px] text-gray-400">📍 ${v.coordenadas.lat || 'S/G'}, ${v.coordenadas.lng || 'S/G'}</p>
       </div>
     `).join("");
 }
@@ -191,18 +225,15 @@ function exibirHistorico() {
 function initApp() {
   const sel = document.getElementById("local");
   if (sel) sel.innerHTML = LOCAIS_VISITA.map(l => `<option>${l}</option>`).join("");
-  initCadastro();
   showScreen("screen-cadastro");
 }
 
-// ---------------- GLOBAL ----------------
-
+// Globais
 window.selectRoteiro = selectRoteiro;
 window.finalizarVistoria = salvarVistoriaNoHistorico;
 window.showScreen = showScreen;
 window.exibirHistorico = exibirHistorico;
 window.capturarGPS = capturarGPS;
-
+window.initCadastro = initCadastro;
 
 document.addEventListener("DOMContentLoaded", initApp);
-
