@@ -117,20 +117,30 @@ function renderFormulario() {
     const div = document.createElement("div");
     div.className = "bg-white p-4 rounded-xl shadow-sm border-l-4 border-[#0C3C78] mb-4";
 
-    const perguntaLower = p.Pergunta.toLowerCase();
-    const capturaSublocal = perguntaLower.includes("sublocal");
-
     div.innerHTML = `
-      <label class="block font-bold text-gray-700 mb-2">${p.Pergunta}</label>
+      <label class="block font-bold text-gray-700 mb-2">${p.pergunta}</label>
     `;
 
-    const input = document.createElement("input");
-    input.className = "w-full border p-2 rounded-lg focus:ring-2 focus:ring-[#0C3C78]";
-    input.oninput = (e) => APP_STATE.respostas[p.id] = e.target.value;
+    let input;
 
-    if (capturaSublocal) {
-      input.onchange = () => capturarGPS("sublocal");
+    if (p.tipo === "select" && Array.isArray(p.opcoes)) {
+      input = document.createElement("select");
+      input.className = "w-full border p-2 rounded-lg focus:ring-2 focus:ring-[#0C3C78]";
+      input.innerHTML = `<option value="">Selecionar...</option>` +
+        p.opcoes.map(o => `<option value="${o}">${o}</option>`).join("");
+    } else {
+      input = document.createElement("input");
+      input.className = "w-full border p-2 rounded-lg focus:ring-2 focus:ring-[#0C3C78]";
     }
+
+    input.onchange = (e) => {
+      APP_STATE.respostas[p.id] = e.target.value;
+
+      // 🔥 GPS do sublocal de forma robusta
+      if (p.sublocal && p.sublocal !== "") {
+        capturarGPS("sublocal");
+      }
+    };
 
     div.appendChild(input);
     container.appendChild(div);
