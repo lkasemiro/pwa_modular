@@ -193,11 +193,13 @@ function initApp() {
 }
 
 // ---------------- GLOBAL ----------------
+
 window.selectRoteiro = selectRoteiro;
+window.finalizarVistoria = salvarVistoriaNoHistorico;
 window.showScreen = showScreen;
 window.exibirHistorico = exibirHistorico;
 window.capturarGPS = capturarGPS;
-window.finalizarVistoria = salvarVistoriaNoHistorico;
+
 
 document.addEventListener("DOMContentLoaded", initApp);
 
