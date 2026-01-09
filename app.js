@@ -12,6 +12,7 @@ const LOCAIS_VISITA = [
 
 const APP_STATE = {
   avaliador: "",
+  colaborador_gla: "", 
   local: "",
   data_visita: "",
   tipoRoteiro: null,
@@ -21,7 +22,6 @@ const APP_STATE = {
   geolocalizacao_inicio: { lat: null, lng: null },
   geolocalizacao_sublocal: { lat: null, lng: null }
 };
-
 // ---------------- UI / NAVEGAÇÃO ----------------
 function showScreen(id) {
   ["screen-cadastro", "screen-select-roteiro", "screen-formulario", "screen-historico"]
@@ -73,14 +73,16 @@ function initCadastro() {
 
   btn.onclick = () => {
     const avaliador = document.getElementById("avaliador")?.value.trim();
+    const colaboradorGla = document.getElementById("colaborador_gla")?.value.trim(); // <-- CAPTURA
     const local = document.getElementById("local")?.value;
     const data = document.getElementById("data_visita")?.value;
 
-    if (!avaliador || !local || local === "Selecionar Local..." || !data) {
-      return showMessage("Preencha todos os campos.", false);
+    if (!avaliador || !colaboradorGla || !local || local === "Selecionar Local..." || !data) {
+      return showMessage("Preencha todos os campos, incluindo o Colaborador GLA.", false);
     }
 
     APP_STATE.avaliador = avaliador;
+    APP_STATE.colaborador_gla = colaboradorGla; // <-- SALVA NO ESTADO
     APP_STATE.local = local;
     APP_STATE.data_visita = data;
 
@@ -155,6 +157,7 @@ function salvarVistoriaNoHistorico() {
     id: Date.now(),
     local: APP_STATE.local,
     avaliador: APP_STATE.avaliador,
+    colaborador_gla: APP_STATE.colaborador_gla, // <-- INCLUI NO HISTÓRICO
     data: APP_STATE.data_visita,
     coordenadas: APP_STATE.geolocalizacao_inicio
   });
