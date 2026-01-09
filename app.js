@@ -1,346 +1,223 @@
 // ===========================================
-// APP.JS – PWA MODULAR ESTABILIZADO
+// APP.JS – PWA MODULAR OTIMIZADO (V11)
 // ===========================================
 
-// -------------------------------------------
-// ESTADO GLOBAL
-// -------------------------------------------
 const LOCAIS_VISITA = [
-  "Selecionar Local...",
-  "Rio D'Ouro", "São Pedro", "Tinguá - Barrelão", "Tinguá - Serra Velha",
-  "Tinguá - Brava/Macucuo", "Tinguá - Colomi", "Tinguá - Boa Esperança",
-  "Mantiquira - T1", "Mantiquira - T2", "Xerém I - João Pinto",
-  "Xerém II - Entrada", "Xerém III - Plano", "Xerém III - Registro"
+  "Selecionar Local...", "Rio D'Ouro", "São Pedro", "Tinguá - Barrelão", 
+  "Tinguá - Serra Velha", "Tinguá - Brava/Macucuo", "Tinguá - Colomi", 
+  "Tinguá - Boa Esperança", "Mantiquira - T1", "Mantiquira - T2", 
+  "Xerém I - João Pinto", "Xerém II - Entrada", "Xerém III - Plano", "Xerém III - Registro"
 ];
 
 const APP_STATE = {
   avaliador: "", local: "", colaborador: "", data: "",
-  tipoRoteiro: null, roteiro: null,
+  eventosEspaciais: [], tipoRoteiro: null, roteiro: null,
   respostas: {}, fotos: {}, fotoIndex: {}
 };
 
-let mapa = null;
-let stream = null;
-let currentPhotoInputId = null;
-
+let mapa = null, stream = null, currentPhotoInputId = null;
 const GEO_STATE = { latitude: null, longitude: null, accuracy: null, timestamp: null };
-let userMarker = null;
-let accuracyCircle = null;
-let topPhotoUrls = [];
+let userMarker = null, accuracyCircle = null, topPhotoUrls = [];
 
-// -------------------------------------------
-// UI UTILITIES / NAVEGAÇÃO
-// -------------------------------------------
-function showScreen(id) {
-  const telas = ["screen-cadastro", "screen-select-roteiro", "screen-formulario", "screen-final"];
-  telas.forEach((t) => {
-    const el = document.getElementById(t);
-    if (el) el.classList.toggle("hidden", t !== id);
-  });
-  
-  // Se abrir o formulário, garante que o topo de fotos esteja limpo se não for PGE
-  if (id === "screen-formulario" && APP_STATE.tipoRoteiro !== "pge") {
-    limparFotosTopo();
-  }
-}
+// --- NAVEGAÇÃO E UI ---
+const showScreen = (id) => {
+  ["screen-cadastro", "screen-select-roteiro", "screen-formulario", "screen-final"]
+    .forEach(t => document.getElementById(t)?.classList.toggle("hidden", t !== id));
+};
 
-// -------------------------------------------
-// GEOLOCALIZAÇÃO (CORRIGIDA PARA APRESENTAÇÕES)
-// -------------------------------------------
+const showMessage = (msg, ok = false) => {
+  const box = document.getElementById("message-box");
+  if (!box) return alert(msg);
+  box.textContent = msg;
+  box.className = `fixed top-4 left-1/2 -translate-x-1/2 p-4 rounded shadow-lg z-50 ${ok ? 'bg-green-600' : 'bg-red-500'} text-white`;
+  box.classList.remove("hidden");
+  setTimeout(() => box.classList.add("hidden"), 3000);
+};
+
+// --- GEOLOCALIZAÇÃO ---
 function obterLocalizacaoAtual() {
-  if (!navigator.geolocation) {
-    console.warn("Geolocalização não suportada.");
-    return;
-  }
+  if (!navigator.geolocation) return showMessage("GPS não suportado", false);
 
-  // Ajustado para não travar a tela se o GPS demorar
-  const geoOptions = {
-    enableHighAccuracy: false, // False para ser mais rápido em ambientes fechados
-    timeout: 7000,            // 7 segundos de limite
-    maximumAge: 30000         // Aceita cache de 30 segundos
-  };
+  navigator.geolocation.getCurrentPosition((pos) => {
+    const { latitude, longitude, accuracy } = pos.coords;
+    Object.assign(GEO_STATE, { latitude, longitude, accuracy, timestamp: new Date().toISOString() });
 
-  navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const { latitude, longitude, accuracy } = pos.coords;
-      GEO_STATE.latitude = latitude;
-      GEO_STATE.longitude = longitude;
-      GEO_STATE.accuracy = accuracy;
-      GEO_STATE.timestamp = new Date().toISOString();
-      atualizarMapaComLocalizacao(latitude, longitude, accuracy);
-    },
-    (err) => {
-      console.warn("GPS Timeout/Erro (Normal em locais fechados):", err.message);
-      // Não mostramos mensagem de erro invasiva aqui para não atrapalhar a UI
-    },
-    geoOptions
-  );
-}
-
-function atualizarMapaComLocalizacao(lat, lng, accuracy) {
-  if (!mapa) return;
-  if (userMarker) mapa.removeLayer(userMarker);
-  if (accuracyCircle) mapa.removeLayer(accuracyCircle);
-
-  userMarker = L.marker([lat, lng]).addTo(mapa)
-    .bindPopup("📍 Localização da Visita").openPopup();
-
-  accuracyCircle = L.circle([lat, lng], {
-    radius: accuracy, color: "#2563eb", fillOpacity: 0.1
-  }).addTo(mapa);
-
-  mapa.setView([lat, lng], 16);
-}
-
-// -------------------------------------------
-// INICIALIZAÇÃO E CADASTRO
-// -------------------------------------------
-function initApp() {
-  console.log("Iniciando App...");
-  initLocaisSelect();
-  carregarMetaDoLocalStorage();
-  initMapa();
-  initCadastro();
-  initFormButtons();
-  
-  // Força a exibição da tela inicial
-  showScreen("screen-cadastro");
-}
-
-function initLocaisSelect() {
-  const sel = document.getElementById("local");
-  if (sel) sel.innerHTML = LOCAIS_VISITA.map(l => `<option value="${l}">${l}</option>`).join("");
-}
-
-function initMapa() {
-  const div = document.getElementById("mapa_local");
-  if (!div || mapa) return;
-
-  mapa = L.map("mapa_local").setView([-22.9035, -43.2096], 12);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(mapa);
-  
-  setTimeout(() => { 
-    mapa.invalidateSize();
-    obterLocalizacaoAtual(); 
-  }, 500);
-}
-
-function carregarMetaDoLocalStorage() {
-  const fields = ["avaliador", "local", "colaborador", "data_visita"];
-  fields.forEach(f => {
-    const val = localStorage.getItem(f === "data_visita" ? "data" : f);
-    const el = document.getElementById(f);
-    if (val && el) {
-      el.value = val;
-      APP_STATE[f === "data_visita" ? "data" : f] = val;
+    APP_STATE.eventosEspaciais.push({ ...GEO_STATE, contexto: APP_STATE.tipoRoteiro });
+    
+    if (mapa) {
+      if (userMarker) mapa.removeLayer(userMarker);
+      if (accuracyCircle) mapa.removeLayer(accuracyCircle);
+      userMarker = L.marker([latitude, longitude]).addTo(mapa).bindPopup("Sua posição").openPopup();
+      accuracyCircle = L.circle([latitude, longitude], { radius: accuracy, color: '#3b82f6' }).addTo(mapa);
+      mapa.setView([latitude, longitude], 16);
     }
-  });
+  }, (err) => console.warn("Erro GPS:", err), { enableHighAccuracy: true });
 }
 
+// --- CADASTRO ---
 function initCadastro() {
   const btn = document.getElementById("btn-cadastro-continuar");
   if (!btn) return;
 
   btn.onclick = () => {
-    APP_STATE.avaliador = document.getElementById("avaliador").value.trim();
-    APP_STATE.local = document.getElementById("local").value.trim();
-    APP_STATE.colaborador = document.getElementById("colaborador").value.trim();
-    APP_STATE.data = document.getElementById("data_visita").value.trim();
+    const fields = ["avaliador", "local", "colaborador", "data_visita"];
+    const values = fields.reduce((acc, f) => ({ ...acc, [f]: document.getElementById(f).value.trim() }), {});
 
-    if (!APP_STATE.avaliador || !APP_STATE.local || APP_STATE.local === "Selecionar Local..." || !APP_STATE.data) {
-      alert("Preencha os campos obrigatórios (Avaliador, Local e Data).");
-      return;
+    if (Object.values(values).some(v => !v || v === "Selecionar Local...")) {
+      return showMessage("Preencha todos os campos corretamente.", false);
     }
 
-    localStorage.setItem("avaliador", APP_STATE.avaliador);
-    localStorage.setItem("local", APP_STATE.local);
-    localStorage.setItem("colaborador", APP_STATE.colaborador);
-    localStorage.setItem("data", APP_STATE.data);
-
+    Object.assign(APP_STATE, values);
+    fields.forEach(f => localStorage.setItem(f, values[f]));
+    
     showScreen("screen-select-roteiro");
-  };
+  }; // Fechamento corrigido aqui
 }
 
-// -------------------------------------------
-// EXPOSIÇÃO GLOBAL (Módulos)
-// -------------------------------------------
-window.initApp = initApp;
-window.selectRoteiro = selectRoteiro;
-window.voltarParaCadastro = voltarParaCadastro;
-window.abrirCamera = abrirCamera;
-window.showScreen = showScreen;
-
-// Dispara o app
-window.addEventListener("load", initApp);
-
-// -------------------------------------------
-// SELEÇÃO DO ROTEIRO
-// -------------------------------------------
+// --- ROTEIROS E FORMULÁRIO ---
 async function selectRoteiro(tipo) {
-  // window.ROTEIROS é preenchido pelo import no index.html
-  if (!window.ROTEIROS || !window.ROTEIROS[tipo]) {
-    console.error("Roteiro não carregado:", tipo);
-    alert("Erro: Dados do roteiro não encontrados.");
-    return;
-  }
-
   APP_STATE.tipoRoteiro = tipo;
-  APP_STATE.roteiro = window.ROTEIROS[tipo];
-  APP_STATE.respostas = {};
-  APP_STATE.fotos = {};
-  APP_STATE.fotoIndex = {};
-
-  showSpinner();
-  // Inicializa o banco de dados para o tipo selecionado
-  if (typeof initIndexedDB === "function") {
-    try {
-      await initIndexedDB(tipo);
-    } catch (e) {
-      console.warn("Erro ao iniciar IndexedDB, operando em memória:", e);
-    }
-  }
-  hideSpinner();
-
-  // Define o título na tela
-  const label = document.getElementById("roteiro-atual-label");
-  if (label) {
-    const nomes = { geral: "Geral", pge: "PGE", aa: "Acidentes Ambientais" };
-    label.textContent = nomes[tipo] || "Formulário";
-  }
-
-  // Prepara o formulário
-  montarSecoes();
+  // Busca roteiros no objeto global preenchido pelo index.html
+  APP_STATE.roteiro = window.ROTEIROS[tipo]; 
   
-  if (tipo === "pge") {
-    montarLocaisPGE();
-    document.getElementById("local_pge_box")?.classList.remove("hidden");
-  } else {
-    document.getElementById("local_pge_box")?.classList.add("hidden");
-  }
+  await initIndexedDB(tipo);
+  
+  const labels = { pge: "PGE", geral: "Geral", aa: "Acidentes Ambientais" };
+  document.getElementById("roteiro-atual-label").textContent = labels[tipo];
 
+  // Mostra/Esconde seções específicas de PGE
+  const isPGE = tipo === "pge";
+  document.getElementById("local_pge_box")?.classList.toggle("hidden", !isPGE);
+  document.getElementById("sublocal_box")?.classList.toggle("hidden", !isPGE);
+
+  if (isPGE) montarLocaisPGE();
+  montarSecoes();
   renderFormulario();
   showScreen("screen-formulario");
 }
 
-// -------------------------------------------
-// RENDERIZAÇÃO DO FORMULÁRIO
-// -------------------------------------------
 function renderFormulario(secaoFiltrada = null) {
   const container = document.getElementById("conteudo_formulario");
   if (!container) return;
-  container.innerHTML = "";
-
+  
   let perguntas = APP_STATE.roteiro || [];
 
-  // Filtro de Seção
+  // Filtros PGE
+  if (APP_STATE.tipoRoteiro === "pge") {
+    const local = document.getElementById("local_pge_select")?.value;
+    const sublocal = document.getElementById("sublocal_select")?.value;
+    if (!local || !sublocal) {
+      container.innerHTML = `<div class="p-8 text-center text-gray-400">Selecione Local e Sublocal acima.</div>`;
+      return;
+    }
+    perguntas = perguntas.filter(p => p.Local === local && p.Sublocal === sublocal);
+  }
+
   if (secaoFiltrada) {
-    perguntas = perguntas.filter(p => (p.secao || p.Secao) === secaoFiltrada);
+    perguntas = perguntas.filter(p => (p.Secao || p["Seção"]) === secaoFiltrada);
   }
 
-  if (perguntas.length === 0) {
-    container.innerHTML = `<div class="p-4 text-gray-500 text-center">Nenhuma pergunta disponível nesta seção.</div>`;
-    return;
-  }
-
-  const card = document.createElement("div");
-  card.className = "bg-white rounded-xl shadow p-4 space-y-6";
-
-  perguntas.forEach((p) => {
+  // Renderização performática usando DocumentFragment
+  const fragment = document.createDocumentFragment();
+  perguntas.forEach(p => {
     const div = document.createElement("div");
+    div.className = "mb-6 p-4 bg-white rounded-lg shadow-sm border-l-4 border-blue-500";
     div.id = `group_${p.id}`;
-    div.className = "border-b pb-4 last:border-0";
-
-    const label = document.createElement("label");
-    label.className = "block font-bold text-gray-700 mb-2";
-    label.innerHTML = p.pergunta || p.Pergunta;
-    div.appendChild(label);
-
-    const inputArea = criarInputParaPergunta(p);
-    div.appendChild(inputArea);
-
-    card.appendChild(div);
+    
+    div.innerHTML = `
+      ${p.ImagemApoio ? `<img src="${p.ImagemApoio}" class="mb-2 rounded max-h-40">` : ''}
+      <label class="block font-bold text-gray-700 mb-2">${p.Pergunta}</label>
+      <div id="input_container_${p.id}"></div>
+    `;
+    
+    const inputWrapper = div.querySelector(`#input_container_${p.id}`);
+    inputWrapper.appendChild(criarInputParaPergunta(p));
+    fragment.appendChild(div);
   });
 
-  container.appendChild(card);
+  container.innerHTML = "";
+  container.appendChild(fragment);
   applyConditionalLogic();
 }
 
-// -------------------------------------------
-// CRIAÇÃO DOS CAMPOS (INPUTS)
-// -------------------------------------------
 function criarInputParaPergunta(p) {
-  const wrapper = document.createElement("div");
-  const tipo = (p.tipo || p.TipoInput || "").toLowerCase();
-  const idPerg = p.id;
-  const opcoes = p.opcoes || [];
+  const val = APP_STATE.respostas[p.id] || "";
+  const tipo = (p.TipoInput || "text").toLowerCase();
+  const el = document.createElement("div");
 
-  if (tipo === "radio") {
-    opcoes.forEach(op => {
-      const lbl = document.createElement("label");
-      lbl.className = "flex items-center space-x-2 mb-2 cursor-pointer";
-      lbl.innerHTML = `<input type="radio" name="${idPerg}" value="${op}" class="w-5 h-5 text-blue-600"> <span>${op}</span>`;
-      lbl.querySelector("input").onchange = () => autosave(idPerg, op);
-      wrapper.appendChild(lbl);
+  if (tipo === "radio" || tipo === "checkboxgroup") {
+    const ops = (p.Opcoes || "").split(";").filter(Boolean);
+    el.innerHTML = ops.map(op => `
+      <label class="inline-flex items-center mt-2 mr-4">
+        <input type="${tipo === 'radio' ? 'radio' : 'checkbox'}" name="${p.id}" value="${op}" 
+        ${val.includes(op) ? 'checked' : ''} class="w-5 h-5 text-blue-600">
+        <span class="ml-2 text-gray-700">${op}</span>
+      </label>
+    `).join("");
+    
+    el.querySelectorAll('input').forEach(i => i.onchange = (e) => {
+      let result = e.target.value;
+      if (tipo === 'checkboxgroup') {
+        result = [...el.querySelectorAll('input:checked')].map(c => c.value).join(";");
+      }
+      autosave(p.id, result);
     });
-  } 
-  else if (tipo === "textarea") {
-    const ta = document.createElement("textarea");
-    ta.className = "w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500";
-    ta.rows = 3;
-    ta.oninput = () => autosave(idPerg, ta.value);
-    wrapper.appendChild(ta);
+  } else if (tipo === "file") {
+    el.innerHTML = `
+      <button onclick="abrirCamera('${p.id}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+        📸 Capturar Foto
+      </button>
+      <div id="fotos_${p.id}" class="mt-2 text-xs text-gray-500"></div>
+    `;
+  } else {
+    const input = document.createElement(tipo === "textarea" ? "textarea" : "input");
+    input.className = "w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none";
+    input.value = val;
+    if (tipo === "number") input.type = "number";
+    input.oninput = (e) => autosave(p.id, e.target.value);
+    el.appendChild(input);
   }
-  else if (tipo === "file") {
-    const btn = document.createElement("button");
-    btn.className = "flex items-center justify-center w-full bg-blue-100 text-blue-700 p-4 rounded-lg border-2 border-dashed border-blue-300 hover:bg-blue-200 transition";
-    btn.innerHTML = `📸 Capturar Foto`;
-    btn.onclick = () => abrirCamera(idPerg);
-    wrapper.appendChild(btn);
-
-    const lista = document.createElement("div");
-    lista.id = `fotos_${idPerg}`;
-    lista.className = "mt-2 flex flex-wrap gap-2";
-    wrapper.appendChild(lista);
-  }
-  else {
-    const inp = document.createElement("input");
-    inp.type = tipo === "number" ? "number" : "text";
-    inp.className = "w-full border rounded-lg p-2";
-    inp.oninput = () => autosave(idPerg, inp.value);
-    wrapper.appendChild(inp);
-  }
-
-  return wrapper;
-}
-
-// -------------------------------------------
-// LÓGICA DE SEÇÕES E CONDICIONAIS
-// -------------------------------------------
-function montarSecoes() {
-  const sel = document.getElementById("secao_select");
-  if (!sel) return;
-  const secoes = [...new Set((APP_STATE.roteiro || []).map(p => p.secao || p.Secao))].filter(Boolean);
-  sel.innerHTML = `<option value="">Todas as Seções</option>` + secoes.map(s => `<option value="${s}">${s}</option>`).join("");
-  sel.onchange = (e) => renderFormulario(e.target.value);
+  return el;
 }
 
 function autosave(id, valor) {
   APP_STATE.respostas[id] = valor;
-  if (typeof saveAnswerToDB === "function") saveAnswerToDB(id, valor);
+  saveAnswerToDB(id, valor); // No indexedDB.js
   applyConditionalLogic();
 }
 
 function applyConditionalLogic() {
-  // Lógica para esconder/mostrar perguntas dependentes (ex: 4.1 se 4 for 'Outro')
-  const roteiro = APP_STATE.roteiro || [];
-  roteiro.forEach(p => {
-    if (p.pergunta.includes(".1")) { // Exemplo simples: perguntas .1 dependem da anterior
-      const idBase = p.id.split("_")[0] + "_" + (parseInt(p.id.split("_")[1]) - 1).toString().padStart(2, '0');
-      const group = document.getElementById(`group_${p.id}`);
-      if (group) {
-        const respPai = APP_STATE.respostas[idBase];
-        group.classList.toggle("hidden", !respPai || (respPai !== "Sim" && !respPai.includes("Outro")));
-      }
+  APP_STATE.roteiro?.forEach(p => {
+    const cond = p.Condicao || p["Condição"];
+    const pai = p.Pai;
+    if (cond && pai) {
+      const el = document.getElementById(`group_${p.id}`);
+      el?.classList.toggle("hidden", APP_STATE.respostas[pai] !== cond);
     }
   });
 }
+
+// --- FINALIZAÇÃO ---
+function initApp() {
+  const sel = document.getElementById("local");
+  if (sel) sel.innerHTML = LOCAIS_VISITA.map(l => `<option value="${l}">${l}</option>`).join("");
+  
+  ["avaliador", "local", "colaborador", "data_visita"].forEach(f => {
+    const val = localStorage.getItem(f);
+    if (val) {
+      document.getElementById(f).value = val;
+      APP_STATE[f] = val;
+    }
+  });
+
+  initMapa();
+  initCadastro();
+  showScreen("screen-cadastro");
+}
+
+// Exposição Global
+window.selectRoteiro = selectRoteiro;
+window.abrirCamera = abrirCamera;
+window.initApp = initApp;
+
+document.addEventListener("DOMContentLoaded", initApp);
