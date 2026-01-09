@@ -2,13 +2,13 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Supervisão Ambiental – CEDAE</title>
 
   <meta name="theme-color" content="#0C3C78">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="CEDAE Form">
+  <meta name="apple-mobile-web-app-title" content="CEDAE SIGAD">
   
   <link rel="apple-touch-icon" href="icon.png">
   <link rel="icon" type="image/png" href="icon.png">
@@ -16,111 +16,113 @@
 
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  
   <link rel="stylesheet" href="style.css">
+
+  <style>
+    /* Garantir que o mapa apareça */
+    #mapa_local { height: 400px; width: 100%; border-radius: 12px; }
+    .hidden { display: none !important; }
+  </style>
 </head>
 
 <body class="bg-gray-50 text-gray-800">
 
-<div id="message-box"
-     class="fixed top-0 left-1/2 transform -translate-x-1/2 mt-4 p-3 text-white rounded-lg shadow-lg hidden z-50"></div>
+<div id="message-box" class="fixed top-4 left-1/2 -translate-x-1/2 p-4 rounded-lg shadow-xl hidden z-[100] text-white font-bold"></div>
 
 <section id="screen-cadastro" class="max-w-5xl mx-auto p-4">
   <div class="text-center mb-6">
-    <img src="icon.png" alt="Logo CEDAE" class="h-20 mx-auto mb-4">
-    <h1 class="text-xl font-bold text-blue-900 uppercase tracking-tight">
-      Relatório de Supervisão Ambiental
-    </h1>
-    <p class="text-gray-600">Formulário de Visita Técnica</p>
+    <img src="icon.png" alt="Logo CEDAE" class="h-16 mx-auto mb-4">
+    <h1 class="text-xl font-bold text-blue-900 uppercase tracking-tight">Supervisão Ambiental</h1>
+    <p class="text-gray-500 text-sm">Núcleo Técnico - GLA/DSG</p>
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-      <label class="block font-medium text-gray-700 mb-1">Nome do Avaliador:</label>
-      <input id="avaliador" type="text" placeholder="Nome completo"
-             class="w-full p-3 border border-gray-300 rounded mb-4 focus:ring-2 focus:ring-blue-500 outline-none">
-
-      <label class="block font-medium text-gray-700 mb-1">Local da Visita:</label>
-      <select id="local" class="w-full p-3 border border-gray-300 rounded mb-4 focus:ring-2 focus:ring-blue-500"></select>
-
-      <label class="block font-medium text-gray-700 mb-1">Data da Visita:</label>
-      <input id="data_visita" type="date"
-             class="w-full p-3 border border-gray-300 rounded mb-4">
-
-      <label class="block font-medium text-gray-700 mb-1">Colaborador da GLA:</label>
-      <input id="colaborador" type="text" placeholder="Nome do acompanhante"
-             class="w-full p-3 border border-gray-300 rounded mb-6">
-
-      <button id="btn-cadastro-continuar"
-              class="w-full bg-blue-700 text-white py-3 rounded-lg font-bold shadow hover:bg-blue-800 transition-all">
-        Salvar e Continuar
-      </button>
+    <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-semibold text-gray-600 mb-1">Avaliador:</label>
+          <input id="avaliador" type="text" placeholder="Nome completo" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-600 mb-1">Local da Unidade:</label>
+          <select id="local" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"></select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-600 mb-1">Data:</label>
+          <input id="data_visita" type="date" class="w-full p-3 border rounded-lg">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-600 mb-1">Colaborador Local:</label>
+          <input id="colaborador" type="text" placeholder="Acompanhante" class="w-full p-3 border rounded-lg">
+        </div>
+        <button id="btn-cadastro-continuar" class="w-full bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-800 transition-all uppercase">
+          Iniciar Supervisão
+        </button>
+      </div>
     </div>
-
-    <div id="mapa_local"
-         style="height:450px; width:100%;"
-         class="rounded-xl border-2 border-white shadow-md z-10"></div>
+    <div id="mapa_local" class="shadow-inner border-2 border-white"></div>
   </div>
 </section>
 
-<div id="camera-modal"
-     class="fixed inset-0 bg-black bg-opacity-90 hidden z-50 flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl shadow-2xl p-4 w-full max-w-lg">
-    <div class="flex justify-between items-center mb-4">
-        <h4 class="text-lg font-bold">Capturar Foto</h4>
-        <button id="close-modal" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
-    </div>
+<section id="screen-select-roteiro" class="max-w-4xl mx-auto p-6 hidden">
+  <h2 class="text-2xl font-bold text-center mb-8 text-blue-900">Selecione o Roteiro Aplicável</h2>
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <button onclick="selectRoteiro('geral')" class="p-6 bg-white border-2 border-blue-100 rounded-2xl hover:border-blue-500 shadow-sm transition-all group">
+      <div class="text-3xl mb-2">📋</div>
+      <div class="font-bold text-lg text-gray-700">Geral</div>
+    </button>
+    <button onclick="selectRoteiro('pge')" class="p-6 bg-white border-2 border-blue-100 rounded-2xl hover:border-blue-500 shadow-sm transition-all">
+      <div class="text-3xl mb-2">🏢</div>
+      <div class="font-bold text-lg text-gray-700">PGE</div>
+    </button>
+    <button onclick="selectRoteiro('aa')" class="p-6 bg-white border-2 border-blue-100 rounded-2xl hover:border-blue-500 shadow-sm transition-all">
+      <div class="text-3xl mb-2">⚠️</div>
+      <div class="font-bold text-lg text-gray-700">Acidente Ambiental</div>
+    </button>
+  </div>
+</section>
 
-    <div class="relative w-full aspect-square bg-black rounded-xl overflow-hidden shadow-inner">
-      <video id="video" autoplay playsinline class="w-full h-full object-cover hidden"></video>
-      <canvas id="canvas" class="hidden"></canvas>
-      <div id="camera-placeholder" class="absolute inset-0 flex items-center justify-center text-gray-400 text-center p-4">
-        <p>Aguardando permissão da câmera...</p>
-      </div>
-    </div>
+<section id="screen-formulario" class="max-w-4xl mx-auto p-4 hidden">
+  <div class="flex justify-between items-center mb-4 bg-white p-4 rounded-lg shadow-sm">
+    <h3 id="roteiro-atual-label" class="font-bold text-blue-800 uppercase">Formulário</h3>
+    <button onclick="showScreen('screen-select-roteiro')" class="text-sm text-gray-500 underline">Trocar Roteiro</button>
+  </div>
+  <div id="conteudo_formulario" class="space-y-4"></div>
+  </section>
 
-    <div class="mt-6 flex gap-3">
-      <button id="start-camera" class="bg-blue-600 text-white py-3 px-4 rounded-xl flex-1 font-semibold">
-        <span id="camera-btn-text">Ativar Câmera</span>
-      </button>
-      <button id="capture-photo" disabled class="bg-green-600 text-white py-3 px-4 rounded-xl flex-1 font-semibold disabled:opacity-30">
-        Tirar Foto
-      </button>
+<section id="screen-final" class="max-w-md mx-auto p-8 text-center hidden">
+  <div class="bg-white p-8 rounded-3xl shadow-xl">
+    <div class="text-5xl mb-4 text-green-500">✅</div>
+    <h2 class="text-2xl font-bold mb-2">Concluído!</h2>
+    <p class="text-gray-600 mb-6">Os dados foram salvos localmente e estão prontos para exportação.</p>
+    <button onclick="location.reload()" class="w-full bg-gray-100 py-3 rounded-lg font-bold">Nova Visita</button>
+  </div>
+</section>
+
+<div id="camera-modal" class="fixed inset-0 bg-black/90 hidden z-[200] flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl p-4 w-full max-w-lg">
+    <video id="video" autoplay playsinline class="w-full rounded-xl bg-black aspect-video object-cover"></video>
+    <canvas id="canvas" class="hidden"></canvas>
+    <div class="mt-4 flex gap-2">
+      <button id="capture-photo" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">Tirar Foto</button>
+      <button id="close-modal" class="px-6 bg-gray-200 rounded-xl font-bold">Sair</button>
     </div>
   </div>
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 
 <script src="roteiros.js"></script>
-<script src="app.js"></script>
 <script src="indexedDB.js"></script>
-
+<script src="app.js"></script>
 
 <script>
+  // Registro do Service Worker Simplificado
   if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("./service-worker.js").then(reg => {
-        console.log("SW registrado:", reg.scope);
-        
-        // Verifica se há uma nova versão do SW aguardando
-        reg.onupdatefound = () => {
-          const installingWorker = reg.installing;
-          installingWorker.onstatechange = () => {
-            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // Notifica o usuário que há uma nova versão disponível
-              if(confirm("Nova atualização disponível! Deseja atualizar agora?")) {
-                installingWorker.postMessage({ type: 'SKIP_WAITING' });
-                window.location.reload();
-              }
-            }
-          };
-        };
-      });
-    });
+    navigator.serviceWorker.register("./service-worker.js")
+      .then(reg => console.log("Offline Ready: ", reg.scope));
   }
 </script>
 
