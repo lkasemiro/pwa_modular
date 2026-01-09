@@ -186,3 +186,4 @@ async function apagarBanco() {
   alert("Banco limpo.");
   location.reload();
 }
+ 
