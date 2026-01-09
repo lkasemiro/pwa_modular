@@ -38,30 +38,37 @@
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
     <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-      <div class="space-y-4">
-        <div>
-          <label class="block text-sm font-semibold text-gray-600 mb-1">Avaliador:</label>
-          <input id="avaliador" type="text" placeholder="Nome completo" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-semibold text-gray-600 mb-1">Avaliador:</label>
+                <input id="avaliador" type="text" placeholder="Nome completo" 
+                       class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-600 mb-1">Local da Unidade:</label>
+                <select id="local" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"></select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-600 mb-1">Data:</label>
+                <input id="data_visita" type="date" class="w-full p-3 border rounded-lg">
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-600 mb-1">Colaborador Local:</label>
+                <input id="colaborador" type="text" placeholder="Acompanhante" 
+                       class="w-full p-3 border rounded-lg">
+            </div>
+
+            <button id="btn-cadastro-continuar" class="btn-cedae">
+                Salvar e Continuar
+            </button>
         </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-600 mb-1">Local da Unidade:</label>
-          <select id="local" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"></select>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-600 mb-1">Data:</label>
-          <input id="data_visita" type="date" class="w-full p-3 border rounded-lg">
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-600 mb-1">Colaborador Local:</label>
-          <input id="colaborador" type="text" placeholder="Acompanhante" class="w-full p-3 border rounded-lg">
-        </div>
-        <button id="btn-cadastro-continuar" class="w-full bg-blue-700 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-blue-800 transition-all uppercase">
-          Iniciar Supervisão
-        </button>
-      </div>
     </div>
-    <div id="mapa_local" class="shadow-inner border-2 border-white"></div>
-  </div>
+
+    <div id="mapa_local" class="shadow-inner border-2 border-white rounded-xl"></div>
+</div>
 </section>
 
 <section id="screen-select-roteiro" class="max-w-4xl mx-auto p-6 hidden">
