@@ -1,137 +1,61 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Supervisão Ambiental – CEDAE</title>
-
-  <meta name="theme-color" content="#0C3C78">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="CEDAE SIGAD">
-  
-  <link rel="apple-touch-icon" href="icon.png">
-  <link rel="icon" type="image/png" href="icon.png">
-  <link rel="manifest" href="manifest.json">
-
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link rel="stylesheet" href="style.css">
-
-  <style>
-    /* Garantir que o mapa apareça */
-    #mapa_local { height: 400px; width: 100%; border-radius: 12px; }
-    .hidden { display: none !important; }
-  </style>
-</head>
-
-<body class="bg-gray-50 text-gray-800">
-
-<div id="message-box" class="fixed top-4 left-1/2 -translate-x-1/2 p-4 rounded-lg shadow-xl hidden z-[100] text-white font-bold"></div>
-
-<section id="screen-cadastro" class="max-w-5xl mx-auto p-4">
-  <div class="text-center mb-6">
-    <img src="icon.png" alt="Logo CEDAE" class="h-16 mx-auto mb-4">
-    <h1 class="text-xl font-bold text-blue-900 uppercase tracking-tight">Supervisão Ambiental</h1>
-    <p class="text-gray-500 text-sm">Núcleo Técnico - GLA/DSG</p>
-  </div>
-
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
-        <div class="space-y-4">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vistoria CEDAE</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script> </head>
+<body>
+    <header class="bg-[#0C3C78] text-white p-6 rounded-b-3xl shadow-xl">
+        <div class="flex justify-between items-start">
             <div>
-                <label class="block text-sm font-semibold text-gray-600 mb-1">Avaliador:</label>
-                <input id="avaliador" type="text" placeholder="Nome completo" 
-                       class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                <h1 class="text-xl font-bold">Supervisão Ambiental</h1>
+                <p class="text-blue-200 text-xs">Vistoria de Campo</p>
             </div>
-
-            <div>
-                <label class="block text-sm font-semibold text-gray-600 mb-1">Local da Unidade:</label>
-                <select id="local" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"></select>
+            <div class="pulse-container">
+                <div class="pulse-dot"></div>
+                <span class="text-[10px] font-mono">GPS ATIVO</span>
             </div>
-
-            <div>
-                <label class="block text-sm font-semibold text-gray-600 mb-1">Data:</label>
-                <input id="data_visita" type="date" class="w-full p-3 border rounded-lg">
-            </div>
-
-            <div>
-                <label class="block text-sm font-semibold text-gray-600 mb-1">Colaborador Local:</label>
-                <input id="colaborador" type="text" placeholder="Acompanhante" 
-                       class="w-full p-3 border rounded-lg">
-            </div>
-
-            <button id="btn-cadastro-continuar" class="btn-cedae">
-                Salvar e Continuar
-            </button>
         </div>
-    </div>
+    </header>
 
-    <div id="mapa_local" class="shadow-inner border-2 border-white rounded-xl"></div>
-</div>
-</section>
+    <nav class="flex px-6 mt-4 gap-4">
+        <button onclick="alternarAba('formulario')" id="btn-form" class="flex-1 pb-2 border-b-4 border-[#0C3C78] font-bold text-[#0C3C78]">Nova Vistoria</button>
+        <button onclick="alternarAba('historico')" id="btn-hist" class="flex-1 pb-2 border-b-4 border-transparent text-gray-400 font-bold">Histórico</button>
+    </nav>
 
-<section id="screen-select-roteiro" class="max-w-4xl mx-auto p-6 hidden">
-  <h2 class="text-2xl font-bold text-center mb-8 text-blue-900">Selecione o Roteiro Aplicável</h2>
-  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-    <button onclick="selectRoteiro('geral')" class="p-6 bg-white border-2 border-blue-100 rounded-2xl hover:border-blue-500 shadow-sm transition-all group">
-      <div class="text-3xl mb-2">📋</div>
-      <div class="font-bold text-lg text-gray-700">Geral</div>
-    </button>
-    <button onclick="selectRoteiro('pge')" class="p-6 bg-white border-2 border-blue-100 rounded-2xl hover:border-blue-500 shadow-sm transition-all">
-      <div class="text-3xl mb-2">🏢</div>
-      <div class="font-bold text-lg text-gray-700">PGE</div>
-    </button>
-    <button onclick="selectRoteiro('aa')" class="p-6 bg-white border-2 border-blue-100 rounded-2xl hover:border-blue-500 shadow-sm transition-all">
-      <div class="text-3xl mb-2">⚠️</div>
-      <div class="font-bold text-lg text-gray-700">Acidente Ambiental</div>
-    </button>
-  </div>
-</section>
+    <main class="p-6">
+        <section id="aba-formulario">
+            <div class="card">
+                <label class="block font-bold mb-2">Local da Vistoria</label>
+                <select id="select-local" onchange="capturarCoordenadas('local')" class="w-full p-3 border rounded-lg bg-gray-50">
+                    <option value="">Selecione a Unidade...</option>
+                    <option value="Tinguá">ETA Tinguá</option>
+                </select>
+                <p class="text-[10px] text-blue-600 mt-2 font-mono">Coord: <span id="coords-local">0.000, 0.000</span></p>
+            </div>
 
-<section id="screen-formulario" class="max-w-4xl mx-auto p-4 hidden">
-  <div class="flex justify-between items-center mb-4 bg-white p-4 rounded-lg shadow-sm">
-    <h3 id="roteiro-atual-label" class="font-bold text-blue-800 uppercase">Formulário</h3>
-    <button onclick="showScreen('screen-select-roteiro')" class="text-sm text-gray-500 underline">Trocar Roteiro</button>
-  </div>
-  <div id="conteudo_formulario" class="space-y-4"></div>
-  </section>
+            <div class="card">
+                <label class="block font-bold mb-2">Sublocal (Roteiro PGE)</label>
+                <select id="select-sublocal" onchange="capturarCoordenadas('sublocal')" class="w-full p-3 border rounded-lg bg-gray-50">
+                    <option value="">Selecione o Ponto...</option>
+                    <option value="Captação">Captação Principal</option>
+                </select>
+                <p class="text-[10px] text-blue-600 mt-2 font-mono">Coord: <span id="coords-sublocal">0.000, 0.000</span></p>
+            </div>
 
-<section id="screen-final" class="max-w-md mx-auto p-8 text-center hidden">
-  <div class="bg-white p-8 rounded-3xl shadow-xl">
-    <div class="text-5xl mb-4 text-green-500">✅</div>
-    <h2 class="text-2xl font-bold mb-2">Concluído!</h2>
-    <p class="text-gray-600 mb-6">Os dados foram salvos localmente e estão prontos para exportação.</p>
-    <button onclick="location.reload()" class="w-full bg-gray-100 py-3 rounded-lg font-bold">Nova Visita</button>
-  </div>
-</section>
+            <button onclick="salvarVistoria()" class="btn-cedae shadow-lg">FINALIZAR E SALVAR</button>
+        </section>
 
-<div id="camera-modal" class="fixed inset-0 bg-black/90 hidden z-[200] flex items-center justify-center p-4">
-  <div class="bg-white rounded-2xl p-4 w-full max-w-lg">
-    <video id="video" autoplay playsinline class="w-full rounded-xl bg-black aspect-video object-cover"></video>
-    <canvas id="canvas" class="hidden"></canvas>
-    <div class="mt-4 flex gap-2">
-      <button id="capture-photo" class="flex-1 bg-green-600 text-white py-3 rounded-xl font-bold">Tirar Foto</button>
-      <button id="close-modal" class="px-6 bg-gray-200 rounded-xl font-bold">Sair</button>
-    </div>
-  </div>
-</div>
+        <section id="aba-historico" class="hidden">
+            <h2 class="font-bold text-gray-700 mb-4">Vistorias Salvas no Dispositivo</h2>
+            <div id="lista-historico" class="space-y-3">
+                </div>
+        </section>
+    </main>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-
-<script src="roteiros.js"></script>
-<script src="indexedDB.js"></script>
-<script src="app.js"></script>
-
-<script>
-  // Registro do Service Worker Simplificado
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./service-worker.js")
-      .then(reg => console.log("Offline Ready: ", reg.scope));
-  }
-</script>
-
+    <script src="indexedDB.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
