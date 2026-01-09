@@ -173,4 +173,174 @@ window.showScreen = showScreen;
 // Dispara o app
 window.addEventListener("load", initApp);
 
-// ... (Mantenha as demais funções: selectRoteiro, renderFormulario, etc., conforme seu arquivo original)
+// -------------------------------------------
+// SELEÇÃO DO ROTEIRO
+// -------------------------------------------
+async function selectRoteiro(tipo) {
+  // window.ROTEIROS é preenchido pelo import no index.html
+  if (!window.ROTEIROS || !window.ROTEIROS[tipo]) {
+    console.error("Roteiro não carregado:", tipo);
+    alert("Erro: Dados do roteiro não encontrados.");
+    return;
+  }
+
+  APP_STATE.tipoRoteiro = tipo;
+  APP_STATE.roteiro = window.ROTEIROS[tipo];
+  APP_STATE.respostas = {};
+  APP_STATE.fotos = {};
+  APP_STATE.fotoIndex = {};
+
+  showSpinner();
+  // Inicializa o banco de dados para o tipo selecionado
+  if (typeof initIndexedDB === "function") {
+    try {
+      await initIndexedDB(tipo);
+    } catch (e) {
+      console.warn("Erro ao iniciar IndexedDB, operando em memória:", e);
+    }
+  }
+  hideSpinner();
+
+  // Define o título na tela
+  const label = document.getElementById("roteiro-atual-label");
+  if (label) {
+    const nomes = { geral: "Geral", pge: "PGE", aa: "Acidentes Ambientais" };
+    label.textContent = nomes[tipo] || "Formulário";
+  }
+
+  // Prepara o formulário
+  montarSecoes();
+  
+  if (tipo === "pge") {
+    montarLocaisPGE();
+    document.getElementById("local_pge_box")?.classList.remove("hidden");
+  } else {
+    document.getElementById("local_pge_box")?.classList.add("hidden");
+  }
+
+  renderFormulario();
+  showScreen("screen-formulario");
+}
+
+// -------------------------------------------
+// RENDERIZAÇÃO DO FORMULÁRIO
+// -------------------------------------------
+function renderFormulario(secaoFiltrada = null) {
+  const container = document.getElementById("conteudo_formulario");
+  if (!container) return;
+  container.innerHTML = "";
+
+  let perguntas = APP_STATE.roteiro || [];
+
+  // Filtro de Seção
+  if (secaoFiltrada) {
+    perguntas = perguntas.filter(p => (p.secao || p.Secao) === secaoFiltrada);
+  }
+
+  if (perguntas.length === 0) {
+    container.innerHTML = `<div class="p-4 text-gray-500 text-center">Nenhuma pergunta disponível nesta seção.</div>`;
+    return;
+  }
+
+  const card = document.createElement("div");
+  card.className = "bg-white rounded-xl shadow p-4 space-y-6";
+
+  perguntas.forEach((p) => {
+    const div = document.createElement("div");
+    div.id = `group_${p.id}`;
+    div.className = "border-b pb-4 last:border-0";
+
+    const label = document.createElement("label");
+    label.className = "block font-bold text-gray-700 mb-2";
+    label.innerHTML = p.pergunta || p.Pergunta;
+    div.appendChild(label);
+
+    const inputArea = criarInputParaPergunta(p);
+    div.appendChild(inputArea);
+
+    card.appendChild(div);
+  });
+
+  container.appendChild(card);
+  applyConditionalLogic();
+}
+
+// -------------------------------------------
+// CRIAÇÃO DOS CAMPOS (INPUTS)
+// -------------------------------------------
+function criarInputParaPergunta(p) {
+  const wrapper = document.createElement("div");
+  const tipo = (p.tipo || p.TipoInput || "").toLowerCase();
+  const idPerg = p.id;
+  const opcoes = p.opcoes || [];
+
+  if (tipo === "radio") {
+    opcoes.forEach(op => {
+      const lbl = document.createElement("label");
+      lbl.className = "flex items-center space-x-2 mb-2 cursor-pointer";
+      lbl.innerHTML = `<input type="radio" name="${idPerg}" value="${op}" class="w-5 h-5 text-blue-600"> <span>${op}</span>`;
+      lbl.querySelector("input").onchange = () => autosave(idPerg, op);
+      wrapper.appendChild(lbl);
+    });
+  } 
+  else if (tipo === "textarea") {
+    const ta = document.createElement("textarea");
+    ta.className = "w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500";
+    ta.rows = 3;
+    ta.oninput = () => autosave(idPerg, ta.value);
+    wrapper.appendChild(ta);
+  }
+  else if (tipo === "file") {
+    const btn = document.createElement("button");
+    btn.className = "flex items-center justify-center w-full bg-blue-100 text-blue-700 p-4 rounded-lg border-2 border-dashed border-blue-300 hover:bg-blue-200 transition";
+    btn.innerHTML = `📸 Capturar Foto`;
+    btn.onclick = () => abrirCamera(idPerg);
+    wrapper.appendChild(btn);
+
+    const lista = document.createElement("div");
+    lista.id = `fotos_${idPerg}`;
+    lista.className = "mt-2 flex flex-wrap gap-2";
+    wrapper.appendChild(lista);
+  }
+  else {
+    const inp = document.createElement("input");
+    inp.type = tipo === "number" ? "number" : "text";
+    inp.className = "w-full border rounded-lg p-2";
+    inp.oninput = () => autosave(idPerg, inp.value);
+    wrapper.appendChild(inp);
+  }
+
+  return wrapper;
+}
+
+// -------------------------------------------
+// LÓGICA DE SEÇÕES E CONDICIONAIS
+// -------------------------------------------
+function montarSecoes() {
+  const sel = document.getElementById("secao_select");
+  if (!sel) return;
+  const secoes = [...new Set((APP_STATE.roteiro || []).map(p => p.secao || p.Secao))].filter(Boolean);
+  sel.innerHTML = `<option value="">Todas as Seções</option>` + secoes.map(s => `<option value="${s}">${s}</option>`).join("");
+  sel.onchange = (e) => renderFormulario(e.target.value);
+}
+
+function autosave(id, valor) {
+  APP_STATE.respostas[id] = valor;
+  if (typeof saveAnswerToDB === "function") saveAnswerToDB(id, valor);
+  applyConditionalLogic();
+}
+
+function applyConditionalLogic() {
+  // Lógica para esconder/mostrar perguntas dependentes (ex: 4.1 se 4 for 'Outro')
+  const roteiro = APP_STATE.roteiro || [];
+  roteiro.forEach(p => {
+    if (p.pergunta.includes(".1")) { // Exemplo simples: perguntas .1 dependem da anterior
+      const idBase = p.id.split("_")[0] + "_" + (parseInt(p.id.split("_")[1]) - 1).toString().padStart(2, '0');
+      const group = document.getElementById(`group_${p.id}`);
+      if (group) {
+        const respPai = APP_STATE.respostas[idBase];
+        group.classList.toggle("hidden", !respPai || (respPai !== "Sim" && !respPai.includes("Outro")));
+      }
+    }
+  });
+}
