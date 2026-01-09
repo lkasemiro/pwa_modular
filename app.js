@@ -88,37 +88,66 @@ function selectRoteiro(tipo) {
   };
 
   const roteiro = roteirosMap[tipo];
-  if (!roteiro) return showMessage("Roteiro não encontrado no arquivo.");
+  if (!roteiro || roteiro.length === 0) {
+    return showMessage("Roteiro não encontrado ou vazio.");
+  }
 
   APP_STATE.tipoRoteiro = tipo;
   APP_STATE.roteiroFull = roteiro;
-  APP_STATE.respostas = {};
+  APP_STATE.roteiroFiltrado = [];
 
   const subBox = document.getElementById("sublocal_box");
-  
-  if (tipo === 'pge') {
+
+  if (tipo === "pge") {
+    if (!subBox) {
+      console.warn("sublocal_box não encontrado no HTML.");
+      return;
+    }
     subBox.classList.remove("hidden");
     popularSublocaisPGE();
   } else {
-    subBox.classList.add("hidden");
+    if (subBox) subBox.classList.add("hidden");
     APP_STATE.roteiroFiltrado = APP_STATE.roteiroFull;
     renderFormulario();
   }
+
   showScreen("screen-formulario");
 }
 
 function popularSublocaisPGE() {
   const subSelect = document.getElementById("sublocal_select");
-  // Filtra sublocais que pertencem ao Local escolhido no cadastro
-  const subs = [...new Set(APP_STATE.roteiroFull
-    .filter(p => p.Local === APP_STATE.local)
-    .map(p => p.Sublocal))];
+  if (!subSelect) {
+    console.warn("sublocal_select não encontrado no HTML.");
+    return;
+  }
 
-  subSelect.innerHTML = `<option value="">Selecionar Sublocal...</option>` + 
+  const subs = [
+    ...new Set(
+      APP_STATE.roteiroFull
+        .filter(p => p.local === APP_STATE.local)
+        .map(p => p.sublocal)
+        .filter(Boolean)
+    )
+  ];
+
+  if (subs.length === 0) {
+    showMessage("Nenhum sublocal encontrado para este local.");
+    return;
+  }
+
+  subSelect.innerHTML =
+    `<option value="">Selecionar Sublocal...</option>` +
     subs.map(s => `<option value="${s}">${s}</option>`).join("");
 
   subSelect.onchange = (e) => {
-    APP_STATE.roteiroFiltrado = APP_STATE.roteiroFull.filter(p => p.Sublocal === e.target.value);
+    const sub = e.target.value;
+    if (!sub) return;
+
+    APP_STATE.roteiroFiltrado = APP_STATE.roteiroFull.filter(
+      p => p.sublocal === sub && p.local === APP_STATE.local
+    );
+
+    capturarGPS("sublocal");
     renderFormulario();
   };
 }
@@ -127,24 +156,31 @@ function popularSublocaisPGE() {
 function renderFormulario() {
   const container = document.getElementById("conteudo_formulario");
   if (!container) return;
+
   container.innerHTML = "";
+
+  if (!APP_STATE.roteiroFiltrado || APP_STATE.roteiroFiltrado.length === 0) {
+    container.innerHTML =
+      `<p class="text-center text-gray-400 italic mt-6">
+        Nenhuma pergunta disponível para este filtro.
+      </p>`;
+    return;
+  }
 
   APP_STATE.roteiroFiltrado.forEach(p => {
     const div = document.createElement("div");
-    div.className = "bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-4 animate-in fade-in";
+    div.className =
+      "bg-white p-5 rounded-3xl shadow-sm border border-gray-100 mb-4";
 
-    // Suporte para Imagem de Apoio do PGE
-    let imgHtml = "";
-    const imagem = p.ImagemApoio || p.Imagem_Apoio;
-    if (imagem && imagem.startsWith("data:image")) {
-        imgHtml = `<img src="${imagem}" class="w-full rounded-2xl mb-4 shadow-sm border border-gray-100">`;
-    }
-
-    const labelPergunta = p.Pergunta || p.pergunta;
+    const imgHtml = p.imagemApoio
+      ? `<img src="${p.imagemApoio}" class="w-full rounded-2xl mb-4 shadow-sm">`
+      : "";
 
     div.innerHTML = `
       ${imgHtml}
-      <label class="block font-bold text-gray-700 mb-3 text-sm">${labelPergunta}</label>
+      <label class="block font-bold text-gray-700 mb-3 text-sm">
+        ${p.pergunta}
+      </label>
       <div id="input_cont_${p.id}"></div>
     `;
 
@@ -155,33 +191,40 @@ function renderFormulario() {
 }
 
 function criarCampoInput(p) {
-    const tipo = (p.TipoInput || p.tipo || "text").toLowerCase();
-    const opcoesStr = p.Opcoes || p.opcoes || "";
-    
-    let input;
-    if (tipo === "radio" || tipo === "select") {
-        input = document.createElement("select");
-        input.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] outline-none";
-        const lista = opcoesStr.includes(";") ? opcoesStr.split(";") : ["Sim", "Não"];
-        input.innerHTML = `<option value="">Selecionar...</option>` + 
-            lista.map(o => `<option value="${o.trim()}">${o.trim()}</option>`).join("");
-    } else {
-        input = document.createElement("input");
-        input.type = "text";
-        input.className = "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] outline-none";
-    }
+  const tipo = (p.tipo || "text").toLowerCase();
+  const opcoes = Array.isArray(p.opcoes) ? p.opcoes : [];
 
-    input.onchange = (e) => {
-        APP_STATE.respostas[p.id] = e.target.value;
-        // Lógica de GPS por pergunta para Roteiro de Acidentes (AA)
-        if (APP_STATE.tipoRoteiro === 'aa') {
-            navigator.geolocation.getCurrentPosition(pos => {
-                APP_STATE.respostas[`gps_${p.id}`] = `${pos.coords.latitude},${pos.coords.longitude}`;
-            });
-        }
-    };
-    return input;
+  let input;
+
+  if (tipo === "radio" || tipo === "select") {
+    input = document.createElement("select");
+    input.className =
+      "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78]";
+
+    input.innerHTML =
+      `<option value="">Selecionar...</option>` +
+      opcoes.map(o => `<option value="${o}">${o}</option>`).join("");
+  } else {
+    input = document.createElement("input");
+    input.type = "text";
+    input.className =
+      "w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78]";
+  }
+
+  input.onchange = (e) => {
+    APP_STATE.respostas[p.id] = e.target.value;
+
+    if (APP_STATE.tipoRoteiro === "aa") {
+      navigator.geolocation.getCurrentPosition(pos => {
+        APP_STATE.respostas[`gps_${p.id}`] =
+          `${pos.coords.latitude},${pos.coords.longitude}`;
+      });
+    }
+  };
+
+  return input;
 }
+
 
 // ---------------- HISTÓRICO ----------------
 function salvarVistoriaNoHistorico() {
