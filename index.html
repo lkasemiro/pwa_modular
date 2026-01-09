@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Vistoria Ambiental CEDAE</title>
     
-    <link rel="stylesheet" href="style.css">
-    
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <link rel="shortcut icon" href="icon.png" type="image/png">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0C3C78">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="shortcut icon" href="icon.png" type="image/png">
+
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body class="bg-gray-100 text-gray-900 font-sans antialiased select-none">
@@ -21,21 +21,27 @@
 
     <header class="bg-[#0C3C78] text-white p-6 rounded-b-3xl shadow-xl sticky top-0 z-40">
         <div class="flex justify-between items-center">
-            <div>
-                <h1 class="text-xl font-bold tracking-tight">Vistoria Ambiental</h1>
-                <p class="text-blue-200 text-xs opacity-90">CEDAE - Supervisão Técnica</p>
+            <div class="flex items-center gap-3">
+                <div class="bg-white p-1.5 rounded-xl shadow-inner">
+                    <img src="icon.png" alt="CEDAE" class="w-10 h-10 object-contain">
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight leading-tight">Vistoria Ambiental</h1>
+                    <p class="text-blue-200 text-[10px] uppercase tracking-wider font-semibold opacity-90">Supervisão Técnica</p>
+                </div>
             </div>
-            <div class="bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/5">
+            
+            <div class="bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/5 backdrop-blur-sm">
                 <span class="relative flex h-2 w-2">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                     <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                 </span>
-                <span class="text-[10px] font-mono font-bold tracking-widest">GPS ATIVO</span>
+                <span class="text-[10px] font-mono font-bold tracking-widest text-green-100">GPS ATIVO</span>
             </div>
         </div>
     </header>
 
-    <nav class="flex px-6 mt-4 gap-4 sticky top-[88px] bg-gray-100/80 backdrop-blur-md z-30 py-2">
+    <nav class="flex px-6 mt-4 gap-4 sticky top-[92px] bg-gray-100/80 backdrop-blur-md z-30 py-2">
         <button id="btn-form" onclick="showScreen('screen-cadastro')" 
             class="flex-1 pb-2 border-b-4 border-[#0C3C78] font-bold text-[#0C3C78] transition-all">
             Vistoria
@@ -57,18 +63,18 @@
                 <div class="space-y-4">
                     <div class="space-y-1">
                         <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Avaliador</label>
-                        <input id="avaliador" type="text" placeholder="Nome Completo" 
-                            class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] focus:border-transparent outline-none transition-all">
+                        <input id="avaliador" type="text" placeholder="Seu nome" 
+                            class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] outline-none transition-all">
                     </div>
                     
                     <div class="space-y-1">
-                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Local da Vistoria</label>
+                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Unidade / Local</label>
                         <select id="local" onchange="capturarGPS('inicial')" 
-                            class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] outline-none appearance-none"></select>
+                            class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] outline-none"></select>
                     </div>
 
                     <div class="space-y-1">
-                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Data</label>
+                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Data da Visita</label>
                         <input type="date" id="data_visita" 
                             class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] outline-none">
                     </div>
@@ -77,10 +83,8 @@
                 <div class="mt-6 p-4 bg-blue-50/50 rounded-2xl border border-blue-100 flex items-start gap-3">
                     <span class="text-blue-500 mt-0.5 text-lg">📡</span>
                     <div>
-                        <p class="text-[11px] font-mono text-blue-800 leading-tight">
-                            GPS capturado automaticamente:
-                        </p>
-                        <p id="display-coords-inicial" class="text-xs font-bold text-blue-900 font-mono mt-1">Aguardando local...</p>
+                        <p class="text-[11px] font-mono text-blue-800 leading-tight">Coordenadas de Início:</p>
+                        <p id="display-coords-inicial" class="text-xs font-bold text-blue-900 font-mono mt-1 tracking-tighter italic">Aguardando local...</p>
                     </div>
                 </div>
 
@@ -90,46 +94,59 @@
             </div>
 
             <div class="bg-amber-50 border border-amber-200 p-5 rounded-3xl text-xs text-amber-900 shadow-sm">
-                <p class="font-bold mb-2 flex items-center gap-2">
-                    <span class="text-sm">📘</span> Guia Rápido de Campo
-                </p>
+                <p class="font-bold mb-2">📘 Guia Rápido</p>
                 <ul class="space-y-2 opacity-80">
-                    <li class="flex items-center gap-2">🟢 GPS coletado ao selecionar o local.</li>
-                    <li class="flex items-center gap-2">🟢 Dados salvos automaticamente offline.</li>
-                    <li class="flex items-center gap-2">🟢 Gerar Excel na aba Histórico.</li>
+                    <li class="flex items-center gap-2">🟢 GPS captura o ponto de entrada.</li>
+                    <li class="flex items-center gap-2">🟢 Use o PGE para locais com sub-unidades.</li>
                 </ul>
             </div>
         </section>
 
         <section id="screen-select-roteiro" class="hidden space-y-4 animate-in slide-in-from-right duration-300">
-            <h2 class="font-bold text-[#0C3C78] text-lg px-2">Selecione o Roteiro</h2>
+            <h2 class="font-bold text-[#0C3C78] text-lg px-2 tracking-tight">Qual formulário deseja aplicar?</h2>
 
-            <button onclick="selectRoteiro('pge')" 
-                class="w-full p-5 bg-white border-2 border-transparent rounded-3xl text-left hover:border-blue-500 shadow-sm active:bg-blue-50 transition-all flex justify-between items-center group">
-                <div>
-                    <span class="block font-bold text-gray-800 group-hover:text-blue-700 transition-colors">Roteiro PGE</span>
-                    <span class="text-[11px] text-gray-500 italic">Coleta de dados ambientais com sublocal.</span>
-                </div>
-                <span class="text-blue-300 text-xl">➔</span>
-            </button>
+            <div id="lista-roteiros" class="space-y-3">
+                <button onclick="selectRoteiro('pge')" 
+                    class="w-full p-5 bg-white border-2 border-transparent rounded-3xl text-left shadow-sm hover:border-blue-500 active:bg-blue-50 transition-all flex justify-between items-center group">
+                    <div>
+                        <span class="block font-bold text-gray-800 group-hover:text-[#0C3C78]">Roteiro PGE</span>
+                        <span class="text-[11px] text-gray-500 italic">Coleta técnica com captura de sublocal.</span>
+                    </div>
+                    <span class="text-blue-300 text-xl font-bold">➔</span>
+                </button>
+
+                <button onclick="selectRoteiro('geral')" 
+                    class="w-full p-5 bg-white border-2 border-transparent rounded-3xl text-left shadow-sm hover:border-blue-500 active:bg-blue-50 transition-all flex justify-between items-center group">
+                    <div>
+                        <span class="block font-bold text-gray-800 group-hover:text-[#0C3C78]">Roteiro Geral</span>
+                        <span class="text-[11px] text-gray-500 italic">Checklist padrão de supervisão ambiental.</span>
+                    </div>
+                    <span class="text-blue-300 text-xl font-bold">➔</span>
+                </button>
+            </div>
         </section>
 
         <section id="screen-historico" class="hidden space-y-4 animate-in slide-in-from-left duration-300">
-            <div class="flex justify-between items-center px-2">
-                <h2 class="font-bold text-[#0C3C78] text-lg">Vistorias Recentes</h2>
-                <button onclick="exibirHistorico()" class="text-[10px] font-bold text-blue-500 uppercase tracking-tighter">Atualizar</button>
+            <div class="flex justify-between items-end px-2">
+                <div>
+                    <h2 class="font-bold text-[#0C3C78] text-lg">Vistorias</h2>
+                    <p class="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Registros salvos</p>
+                </div>
+                <button onclick="exibirHistorico()" class="text-[10px] font-bold text-blue-500 border border-blue-200 px-3 py-1 rounded-full bg-white">ATUALIZAR</button>
             </div>
             <div id="lista-historico" class="space-y-3">
                 </div>
         </section>
 
         <section id="screen-formulario" class="hidden animate-in fade-in duration-300">
-            <div id="conteudo_formulario" class="space-y-4"></div>
+            <div id="conteudo_formulario" class="space-y-4 pb-10"></div>
             
-            <button onclick="finalizarVistoria()" 
-                class="mt-8 w-full bg-[#0C3C78] text-white py-5 rounded-3xl font-bold shadow-xl active:scale-[0.98] transition-all flex justify-center items-center gap-2">
-                <span>💾</span> FINALIZAR E SALVAR
-            </button>
+            <div class="sticky bottom-4 left-0 right-0 px-2">
+                <button onclick="finalizarVistoria()" 
+                    class="w-full bg-green-600 text-white py-5 rounded-3xl font-bold shadow-2xl active:scale-[0.98] transition-all flex justify-center items-center gap-2 border-4 border-white">
+                    <span>💾</span> FINALIZAR E SALVAR
+                </button>
+            </div>
         </section>
 
     </main>
@@ -137,5 +154,6 @@
     <script src="roteiros.js"></script>
     <script src="indexedDB.js"></script>
     <script src="app.js"></script>
+
 </body>
 </html>
