@@ -73,27 +73,23 @@ async function abrirHistorico() {
 
 // ---------------- ROTEIROS ----------------
 function selectRoteiro(tipo) {
-  const roteiro = ROTEIROS[tipo];
-  if (!roteiro || roteiro.length === 0) {
-    return showMessage(`Roteiro "${tipo}" não encontrado ou vazio.`);
-  }
+    // Mapeamento dinâmico do arquivo roteiros.js
+    const mapa = { 'pge': ROTEIRO_PGE, 'geral': ROTEIRO_GERAL, 'aa': ROTEIRO_AA };
+    const dados = mapa[tipo];
+    
+    if (!dados) return showMessage("Erro: Roteiro não carregado.");
 
-  APP_STATE.tipoRoteiro = tipo;
-  APP_STATE.roteiroSelecionado = roteiro;
-  APP_STATE.respostas = {};
-  APP_STATE.fotos = {};
-
-  const subBox = document.getElementById("sublocal_box");
-
-  if (tipo === "pge") {
-    subBox.classList.remove("hidden");
-    popularSublocaisPGE();
-  } else {
-    subBox.classList.add("hidden");
-    renderPerguntas(roteiro); // 🔥 agora funciona de novo
-  }
-
-  showScreen("screen-formulario");
+    APP_STATE.tipoRoteiro = tipo;
+    APP_STATE.roteiroSelecionado = dados;
+    
+    if (tipo === 'pge') {
+        document.getElementById("sublocal_box").classList.remove("hidden");
+        popularSublocaisPGE();
+    } else {
+        document.getElementById("sublocal_box").classList.add("hidden");
+        renderPerguntas(dados);
+    }
+    showScreen("screen-formulario");
 }
 
 
@@ -153,13 +149,24 @@ function renderPerguntas(lista) {
 }
 
 // ---------------- GPS ----------------
-function capturarGPS(tipo) {
-  navigator.geolocation?.getCurrentPosition(pos => {
-    APP_STATE.geolocalizacao_inicio = {
-      lat: pos.coords.latitude.toFixed(6),
-      lng: pos.coords.longitude.toFixed(6)
-    };
-  });
+async function capturarGPS(tipo) {
+    const display = document.getElementById("display-coords-inicial");
+    display.textContent = "Obtendo sinal...";
+    
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            const lat = pos.coords.latitude.toFixed(6);
+            const lng = pos.coords.longitude.toFixed(6);
+            APP_STATE.geolocalizacao_inicio = { lat, lng };
+            display.textContent = `${lat}, ${lng}`;
+            display.classList.add("text-green-600");
+        },
+        (err) => {
+            display.textContent = "GPS desativado ou sem sinal.";
+            display.classList.add("text-red-500");
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+    );
 }
 
 // ---------------- FINALIZAÇÃO ----------------
