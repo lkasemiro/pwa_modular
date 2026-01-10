@@ -6,6 +6,7 @@
     <title>Vistoria Ambiental CEDAE</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0C3C78">
@@ -14,12 +15,12 @@
     <link rel="shortcut icon" href="icon.png" type="image/png">
 
     <style>
-        /* Ajustes para comportamento de App Nativo */
-        body { -webkit-tap-highlight-color: transparent; }
-        input, select, textarea { font-size: 16px !important; } /* Evita zoom automático no iOS */
+        body { -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; }
+        input, select, textarea { font-size: 16px !important; }
         .animate-in { animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .hidden { display: none !important; }
+        .nav-active { border-bottom-color: #0C3C78; color: #0C3C78; }
     </style>
 </head>
 
@@ -30,152 +31,117 @@
     <header class="bg-[#0C3C78] text-white p-6 rounded-b-3xl shadow-xl sticky top-0 z-40">
         <div class="flex justify-between items-center">
             <div class="flex items-center gap-3">
-                <div class="bg-white p-1.5 rounded-xl shadow-inner">
+                <div class="bg-white p-1.5 rounded-xl">
                     <img src="icon.png" alt="CEDAE" class="w-10 h-10 object-contain">
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold tracking-tight leading-tight">Vistoria Ambiental</h1>
-                    <p class="text-blue-200 text-[10px] uppercase tracking-wider font-semibold opacity-90">Supervisão Técnica GLA</p>
+                    <h1 class="text-xl font-bold tracking-tight">Vistoria Ambiental</h1>
+                    <p class="text-blue-200 text-[10px] uppercase font-semibold">Supervisão Técnica GLA</p>
                 </div>
             </div>
             
-            <div class="bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/5 backdrop-blur-sm">
+            <div class="bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-sm border border-white/10">
                 <span class="relative flex h-2 w-2">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                     <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                 </span>
-                <span class="text-[10px] font-mono font-bold tracking-widest text-green-100">GPS ATIVO</span>
+                <span id="gps-status" class="text-[10px] font-mono font-bold text-green-100">GPS ON</span>
             </div>
         </div>
     </header>
 
     <nav class="flex px-6 mt-4 gap-4 sticky top-[92px] bg-gray-100/80 backdrop-blur-md z-30 py-2">
-    <button id="btn-nav-form"
-        onclick="abrirCadastro()"
-        class="flex-1 pb-2 border-b-4 border-[#0C3C78] font-bold text-[#0C3C78] transition-all">
-        Vistoria
-    </button>
-
-    <button id="btn-nav-hist"
-        onclick="abrirHistorico()"
-        class="flex-1 pb-2 border-b-4 border-transparent text-gray-400 font-bold transition-all">
-        Histórico
-    </button>
-</nav>
-
+        <button id="btn-nav-form" onclick="abrirCadastro()" class="flex-1 pb-2 border-b-4 border-[#0C3C78] font-bold text-[#0C3C78] transition-all">
+            Vistoria
+        </button>
+        <button id="btn-nav-hist" onclick="abrirHistorico()" class="flex-1 pb-2 border-b-4 border-transparent text-gray-400 font-bold transition-all">
+            Histórico
+        </button>
+    </nav>
 
     <main class="p-6 pb-24">
 
         <section id="screen-cadastro" class="space-y-4 animate-in">
             <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                <h2 class="font-bold text-gray-800 mb-5 flex items-center gap-2 text-lg">
-                    📍 Identificação da Visita
-                </h2>
+                <h2 class="font-bold text-gray-800 mb-5 flex items-center gap-2 text-lg">📍 Identificação</h2>
 
                 <div class="space-y-4">
-                    <div class="grid grid-cols-1 gap-4">
-                        <div class="space-y-1">
-                            <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Avaliador (Técnico)</label>
-                            <input id="avaliador" type="text" placeholder="Nome Completo" 
-                                class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] outline-none">
-                        </div>
-                        <div class="space-y-1">
-                            <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Colaborador da Unidade (GLA)</label>
-                            <input id="colaborador_gla" type="text" placeholder="Nome de quem acompanhou" 
-                                class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] outline-none">
-                        </div>
-                    </div>
-                    
                     <div class="space-y-1">
-                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Unidade / Local Principal</label>
-                        <select id="local" onchange="capturarGPS('inicial')" 
-                            class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] outline-none appearance-none"></select>
+                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Avaliador (Técnico)</label>
+                        <input id="avaliador" type="text" placeholder="Nome Completo" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
-
                     <div class="space-y-1">
-                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Data da Atividade</label>
-                        <input type="date" id="data_visita" 
-                            class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl focus:ring-2 focus:ring-[#0C3C78] outline-none">
+                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Colaborador Local</label>
+                        <input id="colaborador_gla" type="text" placeholder="Quem acompanhou" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Unidade / Local</label>
+                        <select id="local" onchange="capturarGPS('inicial')" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none"></select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Data</label>
+                        <input type="date" id="data_visita" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none">
                     </div>
                 </div>
 
                 <div class="mt-6 p-4 bg-blue-50/50 rounded-2xl border border-blue-100 flex items-start gap-3">
-                    <span class="text-blue-500 mt-0.5">📡</span>
+                    <span class="text-blue-500">📡</span>
                     <div>
-                        <p class="text-[11px] font-mono text-blue-800 leading-tight">Coordenadas de Início:</p>
-                        <p id="display-coords-inicial" class="text-xs font-bold text-blue-900 font-mono mt-1 tracking-tighter italic">Selecione o local para ativar...</p>
+                        <p class="text-[11px] font-mono text-blue-800">Coordenadas de Início:</p>
+                        <p id="display-coords-inicial" class="text-xs font-bold text-blue-900 font-mono tracking-tighter">Aguardando local...</p>
                     </div>
                 </div>
 
-                <button onclick="initCadastro()" class="mt-8 w-full bg-[#0C3C78] text-white py-5 rounded-2xl font-bold shadow-lg active:scale-[0.98] transition-all">
-                    Iniciar Visita
+                <button onclick="initCadastro()" class="mt-8 w-full bg-[#0C3C78] text-white py-5 rounded-2xl font-bold shadow-lg active:scale-95 transition-all">
+                    INICIAR VISTORIA
                 </button>
+            </div>
+
+            <div class="p-6 bg-white/50 rounded-3xl border border-dashed border-gray-300">
+                <h3 class="text-xs font-bold text-gray-500 uppercase mb-3 tracking-widest">Guia Rápido</h3>
+                <div class="space-y-3">
+                    <div class="flex gap-3 items-center text-gray-600">
+                        <span class="bg-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">1</span>
+                        <p class="text-[11px]">Preencha os dados e aguarde o sinal do <b>GPS</b>.</p>
+                    </div>
+                    <div class="flex gap-3 items-center text-gray-600">
+                        <span class="bg-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">2</span>
+                        <p class="text-[11px]">Selecione o roteiro. No PGE, use o filtro de <b>Sublocal</b>.</p>
+                    </div>
+                    <div class="flex gap-3 items-center text-gray-600">
+                        <span class="bg-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">3</span>
+                        <p class="text-[11px]">Ao finalizar, o <b>Excel</b> será gerado com todas as fotos.</p>
+                    </div>
+                </div>
             </div>
         </section>
 
         <section id="screen-select-roteiro" class="hidden space-y-4 animate-in">
-            <h2 class="font-bold text-[#0C3C78] text-lg px-2 tracking-tight">Qual formulário deseja aplicar?</h2>
-
+            <h2 class="font-bold text-[#0C3C78] text-lg px-2">Selecione o Formulário</h2>
             <div id="lista-roteiros" class="grid grid-cols-1 gap-3">
-                <button onclick="selectRoteiro('pge')" class="w-full p-5 bg-white border-2 border-transparent rounded-3xl text-left shadow-sm active:bg-blue-50 flex justify-between items-center">
-                    <div>
-                        <span class="block font-bold text-gray-800">Roteiro PGE</span>
-                        <span class="text-[11px] text-gray-500 italic">Específico por Sublocal (com fotos de apoio).</span>
-                    </div>
-                    <span class="text-blue-300 text-xl font-bold">➔</span>
-                </button>
-
-                <button onclick="selectRoteiro('geral')" class="w-full p-5 bg-white border-2 border-transparent rounded-3xl text-left shadow-sm active:bg-blue-50 flex justify-between items-center">
-                    <div>
-                        <span class="block font-bold text-gray-800">Roteiro Geral</span>
-                        <span class="text-[11px] text-gray-500 italic">Checklist padrão de supervisão técnica.</span>
-                    </div>
-                    <span class="text-blue-300 text-xl font-bold">➔</span>
-                </button>
-
-                <button onclick="selectRoteiro('aa')" class="w-full p-5 bg-white border-2 border-transparent rounded-3xl text-left shadow-sm active:bg-blue-50 flex justify-between items-center">
-                    <div>
-                        <span class="block font-bold text-gray-800">Acidentes Ambientais (AA)</span>
-                        <span class="text-[11px] text-gray-500 italic">Emergencial com GPS em cada evidência.</span>
-                    </div>
-                    <span class="text-blue-300 text-xl font-bold">➔</span>
-                </button>
-            </div>
-            
-            <button onclick="showScreen('screen-cadastro')" class="w-full py-4 text-gray-400 font-bold text-sm">❮ Voltar ao Cadastro</button>
+                </div>
+            <button onclick="showScreen('screen-cadastro')" class="w-full py-4 text-gray-400 font-bold text-sm">❮ Voltar</button>
         </section>
 
         <section id="screen-formulario" class="hidden animate-in">
             <div id="sublocal_box" class="hidden bg-[#0C3C78] p-5 rounded-3xl shadow-lg mb-6 text-white">
-                <label class="text-[10px] uppercase font-bold text-blue-200 ml-1">Sublocal em Vistoria</label>
-                <select id="sublocal_select" class="w-full mt-1 bg-white/10 text-white border-none rounded-xl focus:ring-0 outline-none p-2 font-bold"></select>
+                <label class="text-[10px] uppercase font-bold text-blue-200">Sublocal Atual</label>
+                <select id="sublocal_select" class="w-full mt-1 bg-white/10 text-white border-none rounded-xl p-2 font-bold outline-none"></select>
             </div>
-            <div class="flex justify-between items-center mb-4 px-1">
-    <button onclick="showScreen('screen-select-roteiro')"
-        class="text-sm font-bold text-gray-400">
-        ❮ Trocar Roteiro
-    </button>
-
-    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-        Preenchimento
-    </span>
-</div>
 
             <div id="conteudo_formulario" class="space-y-4"></div>
             
             <div class="fixed bottom-6 left-0 right-0 px-6 z-50">
-                <button onclick="finalizarEExportar()"
-    class="w-full bg-green-600 text-white py-5 rounded-3xl font-extrabold shadow-2xl active:scale-[0.95] transition-all flex justify-center items-center gap-2 border-4 border-white">
-    💾 FINALIZAR E BAIXAR EXCEL
-</button>
-
+                <button onclick="finalizarEExportar()" class="w-full bg-green-600 text-white py-5 rounded-3xl font-extrabold shadow-2xl active:scale-95 transition-all flex justify-center items-center gap-2 border-4 border-white">
+                    💾 FINALIZAR E SALVAR EXCEL
+                </button>
             </div>
         </section>
 
         <section id="screen-historico" class="hidden space-y-4 animate-in">
             <div class="flex justify-between items-center px-2">
-                <h2 class="font-bold text-[#0C3C78] text-lg">Vistorias no Dispositivo</h2>
-                <button onclick="apagarBanco()" class="text-[10px] font-bold text-red-500 bg-red-50 px-3 py-2 rounded-lg">LIMPAR TUDO</button>
+                <h2 class="font-bold text-[#0C3C78] text-lg">Série Histórica</h2>
+                <button onclick="apagarBanco()" class="text-[10px] font-bold text-red-500 bg-red-50 px-3 py-2 rounded-lg">LIMPAR DISPOSITIVO</button>
             </div>
             <div id="lista-historico" class="space-y-3">
                 </div>
@@ -183,9 +149,9 @@
 
     </main>
 
-    <script src="roteiros.js"></script> 
+    <script src="roteiros.js"></script>
     <script src="indexedDB.js"></script>
-    <script src="app.js"></script> 
+    <script src="app.js"></script>
 </body>
 </html>
-
+  
