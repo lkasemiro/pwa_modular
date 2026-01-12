@@ -1,5 +1,5 @@
 const DB_NAME = "cedae_pwa_db";
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 
 async function openDB() {
     return new Promise((resolve, reject) => {
