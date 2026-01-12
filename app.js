@@ -171,14 +171,12 @@ async function capturarGPS(tipo) {
 
 // ---------------- FINALIZAÇÃO ----------------
 async function finalizarVistoria() {
-  try {
-    await finalizarERegistrarVisita();
-    showMessage("Vistoria salva com sucesso!", true);
-    setTimeout(() => location.reload(), 2000);
-  } catch (e) {
-    console.error(e);
-    showMessage("Erro ao salvar vistoria.");
-  }
+    try {
+        await DB_API.saveVisita(APP_STATE.dados);
+        showMessage("Dados salvos offline com sucesso!", true);
+    } catch (err) {
+        showMessage("Erro ao salvar: " + err);
+    }
 }
 
 // ---------------- HISTÓRICO ----------------
