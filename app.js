@@ -458,7 +458,6 @@ function atualizarListaFotos(id) {
     container.innerHTML = APP_STATE.fotos[id].map(f => `<div class="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center text-[10px]">FOTO</div>`).join("");
 }
 
-
 function initCadastro() {
     document.getElementById("btn-cadastro-continuar").onclick = () => {
         APP_STATE.avaliador = document.getElementById("avaliador").value;

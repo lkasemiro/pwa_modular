@@ -47,7 +47,7 @@
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-gray-400 uppercase mb-1 ml-1">Local da Unidade</label>
+                <label class="block text-xs font-bold text-gray-400 uppercase mb-1 ml-1">Local da visita</label>
                     <select id="local" class="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 appearance-none"></select>
             </div>
 
@@ -57,7 +57,7 @@
             </div>
 
             <div>
-                <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Colaborador</label>
+                <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Colaborador Gla</label>
                 <input id="colaborador" type="text" class="w-full p-4 bg-gray-50 rounded-2xl">
             </div>
 
@@ -136,7 +136,7 @@
     <div class="bg-white p-8 rounded-[3rem] shadow-xl">
 
         <h2 class="text-2xl font-black mb-2">Vistoria Concluída</h2>
-        <p class="text-gray-500 mb-8">Baixe o relatório consolidado.</p>
+        <p class="text-gray-500 mb-8">Baixe o formulário consolidado.</p>
 
         <div class="space-y-3">
             <button onclick="baixarExcelConsolidado()"
@@ -179,13 +179,6 @@
 <script src="indexedDB.js"></script>
 <script src="app.js"></script>
 
-<script>
-if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./service-worker.js");
-    });
-}
-</script>
 
 </body>
 </html>
