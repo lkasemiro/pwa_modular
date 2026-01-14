@@ -2,89 +2,55 @@
    STYLE.CSS – Estilos Blindados (CEDAE SIGAD)
    ============================================================ */
 
-/* DESIGN DE APLICATIVO NATIVO - CEDAE */
 :root {
     --cedae-blue: #0C3C78;
     --background: #f0f2f5;
 }
 
+/* Base do App */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: var(--background);
-    margin: 0;
-    padding: 0;
     -webkit-tap-highlight-color: transparent;
 }
 
-/* Header Fixo estilo App */
-header {
-    background-color: var(--cedae-blue);
-    color: white;
-    padding: 20px;
-    border-bottom-left-radius: 25px;
-    border-bottom-right-radius: 25px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+/* Ajuste específico para o seletor de Locais */
+select {
+    appearance: none !important; /* Remove estilo padrão do sistema */
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+    background-position: right 1rem center !important;
+    background-repeat: no-repeat !important;
+    background-size: 1.5em 1.5em !important;
+    padding-right: 2.5rem !important;
 }
 
-/* Cards de Aplicativo */
-.card {
-    background: white;
-    margin: 15px;
-    padding: 20px;
-    border-radius: 15px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+/* Inputs focados */
+input:focus, select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(12, 60, 120, 0.2);
+    border-color: var(--cedae-blue);
 }
 
-/* Botões com aparência de PWA */
-button, .btn-cedae {
-    background-color: var(--cedae-blue);
-    color: white;
-    border: none;
-    padding: 15px 20px;
-    border-radius: 12px;
-    width: 100%;
-    font-weight: bold;
-    font-size: 16px;
-    margin-top: 10px;
-    cursor: pointer;
-    box-shadow: 0 4px 6px rgba(12, 60, 120, 0.2);
+/* Animação de entrada das telas */
+.animate-in {
+    animation: fadeIn 0.3s ease-out;
 }
 
-button:active {
-    transform: scale(0.98);
-    opacity: 0.9;
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-/* Inputs Modernos */
-select, input {
-    width: 100%;
-    padding: 12px;
-    margin: 8px 0;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 16px;
-    background-color: #fff;
-}
-
+/* Utilitários */
 .hidden { display: none !important; }
 
-/* Navegação por Abas Inferior ou Superior */
-nav {
-    display: flex;
-    background: white;
-    padding: 10px;
-    margin-bottom: 10px;
-}
-
-nav button {
-    background: none !important;
-    color: #666 !important;
-    box-shadow: none !important;
-    border-bottom: 3px solid transparent;
-    border-radius: 0;
-}
-
-nav button.active {
-    color: var(--cedae-blue) !important;
-    border-bottom: 3px solid var(--cedae-blue);
+/* Estilo para as fotos capturadas (Grade) */
+.foto-preview {
+    width: 100%;
+    aspect-ratio: 1/1;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }

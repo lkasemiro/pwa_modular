@@ -1,223 +1,581 @@
-// ===========================================
-// APP.JS – VERSÃO CORRIGIDA (BOTÕES + HISTÓRICO)
-// ===========================================
+/// ============================================================
+// APP.JS – VERSÃO INTEGRAL CORRIGIDA (ORGANIZADA POR FLUXO)
+// ============================================================
+
+
+
+// ============================================================
+// 1. CONSTANTES E ESTADO GLOBAL
+// ============================================================
 
 const LOCAIS_VISITA = [
-  "Selecionar Local...", "Rio D'Ouro", "São Pedro", "Tinguá - Barrelão",
-  "Tinguá - Serra Velha", "Tinguá - Brava/Macucuo", "Tinguá - Colomi",
-  "Tinguá - Boa Esperança", "Mantiquira - T1", "Mantiquira - T2",
-  "Xerém I - João Pinto", "Xerém II - Entrada", "Xerém III - Plano", "Xerém III - Registro"
+    "Rio D'Ouro", "São Pedro", "Tinguá - Barrelão", "Tinguá - Serra Velha",
+    "Tinguá - Brava/Macucuo", "Tinguá - Colomi", "Tinguá - Boa Esperança",
+    "Mantiquira - T1", "Mantiquira - T2", "Xerém I - João Pinto",
+    "Xerém II - Entrada", "Xerém III - Plano", "Xerém III - Registro"
 ];
 
-const APP_STATE = {
-  avaliador: "",
-  colaborador_gla: "",
-  local: "",
-  data_visita: "",
-  tipoRoteiro: null,
-  roteiroSelecionado: [],
-  respostas: {},
-  fotos: {},
-  geolocalizacao_inicio: { lat: null, lng: null }
+let APP_STATE = {
+    avaliador: "",
+    local: "",
+    colaborador: "",
+    data: "",
+    tipoRoteiro: null,
+    sublocal: "",
+    respostas: {
+        geral: {},
+        pge: {},
+        aa: {}
+    },
+    fotos: {}
 };
 
-// ---------------- UI ----------------
+let stream = null;
+let currentPhotoInputId = null;
+
+
+
+// ============================================================
+// 2. CONTROLE DE TELAS E NAVEGAÇÃO
+// ============================================================
+
 function showScreen(id) {
-  ["screen-cadastro", "screen-select-roteiro", "screen-formulario", "screen-historico"]
-    .forEach(s => document.getElementById(s)?.classList.toggle("hidden", s !== id));
+    const telas = ["screen-cadastro", "screen-select-roteiro", "screen-formulario", "screen-final"];
+    telas.forEach(t => {
+        const el = document.getElementById(t);
+        if (el) el.classList.toggle("hidden", t !== id);
+    });
+    window.scrollTo(0, 0);
 }
 
-// ---------------- MENSAGENS ----------------
-function showMessage(msg, ok = false) {
-  const box = document.getElementById("message-box");
-  if (!box) return alert(msg);
-  box.textContent = msg;
-  box.className = `fixed top-4 left-1/2 -translate-x-1/2 p-4 rounded-xl shadow-xl z-50 ${
-    ok ? "bg-green-600" : "bg-red-500"
-  } text-white font-bold`;
-  box.classList.remove("hidden");
-  setTimeout(() => box.classList.add("hidden"), 3000);
+
+
+// ============================================================
+// 3. BOOTSTRAP DO APLICATIVO
+// ============================================================
+
+async function initApp() {
+    // 1. Tenta carregar dados salvos no IndexedDB
+    try {
+        const dadosSalvos = await DB_API.loadVisita();
+        if (dadosSalvos) {
+            // Restaura o estado global (respostas, local, sublocal, etc)
+            APP_STATE = dadosSalvos;
+            console.log("♻️ Estado da vistoria restaurado com sucesso.");
+        }
+    } catch (err) {
+        console.error("Erro ao restaurar dados:", err);
+    }
+
+    // 2. Popula o seletor de Locais
+    const sel = document.getElementById("local");
+    if (sel) {
+        sel.innerHTML = `<option disabled selected value="">Selecionar Local...</option>` +
+            LOCAIS_VISITA.map(l => `<option value="${l}">${l}</option>`).join("");
+        
+        // Se restaurou o estado, já deixa o local selecionado no HTML
+        if (APP_STATE.local) sel.value = APP_STATE.local;
+    }
+}
+   
+// ============================================================
+// 4. PERSISTÊNCIA DE RESPOSTAS
+// ============================================================
+
+function registrarResposta(idPergunta, valor) {
+    const tipo = APP_STATE.tipoRoteiro;
+    if (!tipo) return;
+
+    if (!APP_STATE.respostas[tipo]) APP_STATE.respostas[tipo] = {};
+    APP_STATE.respostas[tipo][idPergunta] = valor;
+
+    if (window.saveAnswerToDB) window.saveAnswerToDB(idPergunta, valor);
+
+    applyConditionalLogic();
+    console.log(`Salvo [${tipo}]: ${idPergunta} = ${valor}`);
 }
 
-// ---------------- CADASTRO ----------------
-function initCadastro() {
-  const avaliador = document.getElementById("avaliador").value.trim();
-  const colaborador = document.getElementById("colaborador_gla").value.trim();
-  const local = document.getElementById("local").value;
-  const data = document.getElementById("data_visita").value;
-
-  if (!avaliador || !colaborador || local === "Selecionar Local..." || !data) {
-    return showMessage("Preencha todos os campos do cadastro.");
-  }
-
-  Object.assign(APP_STATE, {
-    avaliador,
-    colaborador_gla: colaborador,
-    local,
-    data_visita: data
-  });
-
-  capturarGPS("inicial");
-  showScreen("screen-select-roteiro");
+function carregarMetaDoLocalStorage() {
+    ["avaliador", "local", "colaborador", "data"].forEach(key => {
+        const val = localStorage.getItem(key);
+        if (val) {
+            APP_STATE[key] = val;
+            const el = document.getElementById(key === "data" ? "data_visita" : key);
+            if (el) el.value = val;
+        }
+    });
 }
 
-// ---------------- NAVEGAÇÃO ----------------
-function voltarParaRoteiros() {
-  showScreen("screen-select-roteiro");
-}
 
-async function abrirHistorico() {
-  showScreen("screen-historico");
-  await renderHistorico();
-}
+ carregarMetaDoLocalStorage();
+    initCadastro();
+// ============================================================
+// 5. SELEÇÃO DE ROTEIRO (FLUXO PRINCIPAL)
+// ============================================================
 
-// ---------------- ROTEIROS ----------------
-function selectRoteiro(tipo) {
-    // Mapeamento dinâmico do arquivo roteiros.js
-    const mapa = { 'pge': ROTEIRO_PGE, 'geral': ROTEIRO_GERAL, 'aa': ROTEIRO_AA };
-    const dados = mapa[tipo];
-    
-    if (!dados) return showMessage("Erro: Roteiro não carregado.");
+async function selectRoteiro(tipo) {
+
+    const mapeamento = {
+        geral: window.ROTEIRO_GERAL,
+        pge: window.ROTEIRO_PGE,
+        aa: window.ROTEIRO_AA
+    };
+
+    const selSecao = document.getElementById("secao_select");
+    if (selSecao) selSecao.innerHTML = `<option value="">Todas as seções</option>`;
+
+    const dados = mapeamento[tipo];
+    if (!dados) return alert("Erro: Roteiro não encontrado.");
+
+
+    // DEVERIA REMOVER A IMAGEM DE APOIO 
+    const img = document.getElementById("container_imagem_apoio_sublocal");
+    if (img) img.remove();
 
     APP_STATE.tipoRoteiro = tipo;
-    APP_STATE.roteiroSelecionado = dados;
-    
-    if (tipo === 'pge') {
-        document.getElementById("sublocal_box").classList.remove("hidden");
-        popularSublocaisPGE();
+    APP_STATE.roteiro = dados;
+    if (!APP_STATE.respostas[tipo]) APP_STATE.respostas[tipo] = {};
+
+    document.getElementById("roteiro-atual-label").textContent = tipo.toUpperCase();
+
+    const boxSub = document.getElementById("sublocal_box");
+    if (boxSub) boxSub.classList.toggle("hidden", tipo !== "pge");
+
+    document.getElementById("conteudo_formulario").innerHTML = "";
+
+    if (tipo === "pge") {
+        montarSublocaisFiltrados(APP_STATE.local);
+
+        if (APP_STATE.sublocal) {
+            document.getElementById("sublocal_select").value = APP_STATE.sublocal;
+            exibirImagemApoioSublocal(APP_STATE.sublocal);
+            montarSecoes();
+            renderFormulario();
+        }
     } else {
-        document.getElementById("sublocal_box").classList.add("hidden");
-        renderPerguntas(dados);
+        APP_STATE.sublocal = "";
+        montarSecoes();
+        renderFormulario();
     }
+
     showScreen("screen-formulario");
 }
 
 
-function popularSublocaisPGE() {
-  const subSelect = document.getElementById("sublocal_select");
-  subSelect.innerHTML = "";
 
-  const sublocais = [
-    ...new Set(
-      APP_STATE.roteiroSelecionado
-        .filter(p => getLocalPergunta(p) === APP_STATE.local)
-        .map(p => getSublocalPergunta(p))
-        .filter(s => s && s.trim() !== "")
-    )
-  ];
+// ============================================================
+// 6. SUBLOCAL + SEÇÕES
+// ============================================================
+function montarSecoes() {
+    const sel = document.getElementById("secao_select");
+    if (!sel) return;
 
-  if (sublocais.length === 0) {
-    subSelect.innerHTML = `<option value="">Nenhum sublocal encontrado</option>`;
-    return;
-  }
+    let dados = APP_STATE.roteiro;
 
-  subSelect.innerHTML =
-    `<option value="">Escolha o Sublocal...</option>` +
-    sublocais.map(s => `<option value="${s}">${s}</option>`).join("");
+    if (APP_STATE.tipoRoteiro === "pge") {
+        const sub = document.getElementById("sublocal_select").value;
+        if (!sub) return;
+        dados = dados.filter(p => p.Local === APP_STATE.local && p.Sublocal === sub);
+    }
 
-  subSelect.onchange = (e) => {
-    const sub = e.target.value;
-    if (!sub) return;
+    const secoes = [...new Set(dados.map(p => p.Secao || p["Seção"]))].filter(Boolean).sort();
 
-    const filtrado = APP_STATE.roteiroSelecionado.filter(
-      p => getSublocalPergunta(p) === sub
+    sel.innerHTML =
+        `<option value="">Todas as seções (${secoes.length})</option>` +
+        secoes.map(s => `<option value="${s}">${s}</option>`).join("");
+
+    sel.onchange = () => renderFormulario(sel.value);
+}
+
+
+
+function montarSublocaisFiltrados(localEscolhido) {
+    const selSub = document.getElementById("sublocal_select");
+
+    const subs = [...new Set(
+        ROTEIRO_PGE
+            .filter(p => p.Local === localEscolhido)
+            .map(p => p.Sublocal)
+    )].filter(Boolean).sort();
+
+    selSub.innerHTML = subs.length === 0
+        ? `<option value="">Nenhum sublocal</option>`
+        : `<option value="">Selecione o Sublocal...</option>` +
+          subs.map(s => `<option value="${s}">${s}</option>`).join("");
+
+    document.getElementById("conteudo_formulario").innerHTML = "";
+
+    const img = document.getElementById("container_imagem_apoio_sublocal");
+    if (img) img.remove();
+
+    selSub.onchange = () => {
+        if (selSub.value) {
+            APP_STATE.sublocal = selSub.value;
+            exibirImagemApoioSublocal(selSub.value);
+            montarSecoes();
+            renderFormulario();
+        }
+    };
+}
+
+// ============================================================
+// 7. IMAGEM DE APOIO (PGE)
+// ============================================================
+
+// 1. Limpa qualquer imagem de apoio que já esteja na tela
+function exibirImagemApoioSublocal(sublocal) {
+    const existente = document.getElementById("container_imagem_apoio_sublocal");
+    if (existente) existente.remove();
+
+    // 2. Segurança: Só executa se estivermos no roteiro PGE
+    if (APP_STATE.tipoRoteiro !== "pge" || !sublocal) return;
+
+    // 3. Busca a imagem na base bruta (ROTEIRO_PGE) 
+    // Filtramos pelo Local ativo e pelo Sublocal selecionado que possua Base64
+    const itemComImagem = window.ROTEIRO_PGE.find(p => 
+        p.Local === APP_STATE.local && 
+        p.Sublocal === sublocal && 
+        p.ImagemApoio && 
+        p.ImagemApoio.length > 50 // Verifica se tem conteúdo Base64 real
     );
 
-    renderPerguntas(filtrado);
-  };
+    if (itemComImagem) {
+        const container = document.createElement("div");
+        container.id = "container_imagem_apoio_sublocal";
+        
+        // Estilização para Mobile (Card com sombra e borda azul clara)
+        container.className = "bg-white p-4 rounded-2xl shadow-sm mb-6 border-2 border-blue-100 animate-in";
+        
+        // Tratamento da String Base64 (Garante o prefixo se não existir)
+        let src = itemComImagem.ImagemApoio;
+        if (!src.startsWith("data:image")) {
+            src = `data:image/jpeg;base64,${src}`;
+        }
+
+        container.innerHTML = `
+            <p class="text-[10px] font-black text-blue-600 uppercase mb-3 text-center tracking-widest">
+                📍 REFERÊNCIA VISUAL: ${sublocal}
+            </p>
+            <div class="rounded-xl overflow-hidden bg-gray-50 border border-gray-100">
+                <img src="${src}" 
+                     class="w-full h-auto block mx-auto shadow-inner" 
+                     style="max-height: 300px; object-fit: contain;"
+                     onerror="this.parentElement.innerHTML='<p class=\"p-4 text-center text-xs text-gray-400\">Imagem de apoio não disponível</p>'">
+            </div>
+        `;
+        
+        // 4. Inserção no topo do formulário
+        const formRoot = document.getElementById("conteudo_formulario");
+        if (formRoot) {
+            // prepend coloca no topo, antes de todas as perguntas daquela seção
+            formRoot.prepend(container);
+        }
+    }
 }
 
-// ---------------- FORMULÁRIO ----------------
-function renderPerguntas(lista) {
-  const container = document.getElementById("conteudo_formulario");
-  container.innerHTML = "";
 
-  lista.forEach(p => {
-    const div = document.createElement("div");
-    div.id = `div_${p.id}`;
-    div.className = `bg-white p-5 rounded-3xl shadow-sm border mb-4 ${p.Pai ? "hidden" : ""}`;
+// ============================================================
+// 8. RENDERIZAÇÃO DO FORMULÁRIO
+// ============================================================
 
-    div.innerHTML = `
-      ${p.ImagemApoio ? `<img src="${p.ImagemApoio}" class="rounded-2xl mb-4">` : ""}
-      <label class="font-bold text-sm mb-3 block">${p.Pergunta}</label>
-      <div id="wrap_${p.id}"></div>
-    `;
-
-    container.appendChild(div);
-    document.getElementById(`wrap_${p.id}`).appendChild(gerarComponenteInput(p));
-  });
-}
-
-// ---------------- GPS ----------------
-async function capturarGPS(tipo) {
-    const display = document.getElementById("display-coords-inicial");
-    display.textContent = "Obtendo sinal...";
+function renderFormulario(secaoFiltrada = null) {
+    const container = document.getElementById("conteudo_formulario");
+    if (!container) return;
+    container.innerHTML = "";
     
-    navigator.geolocation.getCurrentPosition(
-        (pos) => {
-            const lat = pos.coords.latitude.toFixed(6);
-            const lng = pos.coords.longitude.toFixed(6);
-            APP_STATE.geolocalizacao_inicio = { lat, lng };
-            display.textContent = `${lat}, ${lng}`;
-            display.classList.add("text-green-600");
-        },
-        (err) => {
-            display.textContent = "GPS desativado ou sem sinal.";
-            display.classList.add("text-red-500");
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-    );
+    let perguntas = APP_STATE.roteiro;
+     if (APP_STATE.tipoRoteiro !== "pge") {
+        const img = document.getElementById("container_imagem_apoio_sublocal");
+        if (img) img.remove();
+    }
+    if (APP_STATE.tipoRoteiro === "pge") {
+        const sub = document.getElementById("sublocal_select").value;
+        if (!sub) {
+            container.innerHTML = `<div class="text-center p-10 text-gray-400 italic">Selecione um sublocal.</div>`;
+            return;
+        }
+        perguntas = perguntas.filter(p => p.Local === APP_STATE.local && p.Sublocal === sub);
+    }
+
+    if (secaoFiltrada) {
+        perguntas = perguntas.filter(p => (p.Secao || p["Seção"]) === secaoFiltrada);
+    }
+
+    perguntas.forEach(p => {
+        const div = document.createElement("div");
+        div.id = `group_${p.id}`;
+        div.className = "bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-4";
+        
+       const valorSalvo =
+    APP_STATE.respostas[APP_STATE.tipoRoteiro]?.[p.id] ?? "";
+
+
+        div.innerHTML = `
+            <label class="block font-bold text-gray-800 mb-3">${p.Pergunta}</label>
+            <div id="input-root-${p.id}"></div>
+        `;
+        container.appendChild(div);
+        renderInput(p, document.getElementById(`input-root-${p.id}`), valorSalvo); 
+    });
+
+    applyConditionalLogic();
 }
 
-// ---------------- FINALIZAÇÃO ----------------
-async function finalizarVistoria() {
+
+// ============================================================
+// 9. INPUTS
+// ============================================================
+
+function renderInput(p, container, valorSalvo) {
+    const tipoInput = p.TipoInput; // Corrigido de 'tipo' para 'tipoInput'
+
+    if (tipoInput === "text" || tipoInput === "textarea") {
+        const input = document.createElement(tipoInput === "text" ? "input" : "textarea");
+        input.className = "w-full border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none";
+        input.value = valorSalvo;
+        input.oninput = (e) => registrarResposta(p.id, e.target.value);
+        container.appendChild(input);
+
+    } else if (tipoInput === "radio") {
+        const opcoes = (p.Opcoes || "").split(";").filter(Boolean);
+        opcoes.forEach(opt => {
+            const checked = valorSalvo === opt ? "checked" : "";
+            const label = document.createElement("label");
+            label.className = "flex items-center gap-3 p-3 border rounded-xl mb-2 hover:bg-gray-50 cursor-pointer";
+            label.innerHTML = `
+                <input type="radio" name="${p.id}" value="${opt}" ${checked} 
+                       onchange="registrarResposta('${p.id}', '${opt}')" class="w-5 h-5 text-blue-600">
+                <span class="text-sm font-medium text-gray-700">${opt}</span>
+            `;
+            container.appendChild(label);
+        });
+
+    } else if (tipoInput === "checkboxgroup") {
+        const opcoes = (p.Opcoes || "").split(";").filter(Boolean);
+        const marcados = (valorSalvo || "").split(";").map(v => v.trim());
+        
+        opcoes.forEach(opt => {
+            const isChecked = marcados.includes(opt) ? "checked" : "";
+            const label = document.createElement("label");
+            label.className = "flex items-center gap-3 p-3 border rounded-xl mb-2 hover:bg-gray-50 cursor-pointer";
+            label.innerHTML = `
+                <input type="checkbox" name="${p.id}" value="${opt}" ${isChecked} 
+                       onchange="atualizarCheckboxes('${p.id}')" class="w-5 h-5 text-green-600 rounded">
+                <span class="text-sm font-medium text-gray-700">${opt}</span>
+            `;
+            container.appendChild(label);
+        });
+
+    } else if (tipoInput === "file") {
+        container.innerHTML = `
+            <button onclick="abrirCamera('${p.id}')" class="bg-amber-500 hover:bg-amber-600 text-white w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors">
+                📷 Capturar Foto
+            </button>
+            <div id="fotos_${p.id}" class="grid grid-cols-4 gap-2 mt-3"></div>
+        `;
+        atualizarListaFotos(p.id);
+    }
+}
+
+function atualizarCheckboxes(idPergunta) {
+    const marcados = Array.from(document.querySelectorAll(`input[name="${idPergunta}"]:checked`)).map(c => c.value);
+    registrarResposta(idPergunta, marcados.join(";"));
+}
+
+
+// ============================================================
+// 10. CONDICIONAIS
+// ============================================================
+
+function applyConditionalLogic() {
+    const tipo = APP_STATE.tipoRoteiro;
+    if (!APP_STATE.roteiro) return;
+    
+    APP_STATE.roteiro.forEach(p => {
+        const cond = p.Condicao || p["Condição"];
+        const pai = p.Pai;
+        if (cond && pai) {
+            const el = document.getElementById(`group_${p.id}`);
+            if (el) {
+                const valorPai = APP_STATE.respostas[tipo][pai];
+                el.classList.toggle("hidden", valorPai !== cond);
+            }
+        }
+    });
+}
+
+
+
+
+// ============================================================
+// 11. CÂMERA
+// ============================================================
+
+async function startCamera() {
+    const video = document.getElementById("video");
     try {
-        await DB_API.saveVisita(APP_STATE.dados);
-        showMessage("Dados salvos offline com sucesso!", true);
-    } catch (err) {
-        showMessage("Erro ao salvar: " + err);
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        video.srcObject = stream;
+        video.classList.remove("hidden");
+        document.getElementById("camera-placeholder").classList.add("hidden");
+        document.getElementById("capture-photo").disabled = false;
+    } catch (err) { alert("Erro ao acessar câmera."); }
+}
+
+function abrirCamera(id) {
+    currentPhotoInputId = id;
+    document.getElementById("camera-modal").classList.remove("hidden");
+    startCamera();
+}
+
+document.getElementById("capture-photo").onclick = () => {
+    const canvas = document.getElementById("canvas");
+    const video = document.getElementById("video");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    
+    canvas.toBlob(blob => {
+        const fotoId = `${currentPhotoInputId}_${Date.now()}`;
+        if (!APP_STATE.fotos[currentPhotoInputId]) APP_STATE.fotos[currentPhotoInputId] = [];
+        APP_STATE.fotos[currentPhotoInputId].push({ id: fotoId, blob: blob });
+        
+        if (window.savePhotoToDB) savePhotoToDB(fotoId, blob, currentPhotoInputId);
+        
+        atualizarListaFotos(currentPhotoInputId);
+        fecharModal();
+    }, "image/jpeg", 0.7);
+};
+
+function fecharModal() {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    document.getElementById("camera-modal").classList.add("hidden");
+}
+
+function atualizarListaFotos(id) {
+    const container = document.getElementById(`fotos_${id}`);
+    if (!container || !APP_STATE.fotos[id]) return;
+    container.innerHTML = APP_STATE.fotos[id].map(f => `<div class="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center text-[10px]">FOTO</div>`).join("");
+}
+
+
+function initCadastro() {
+    document.getElementById("btn-cadastro-continuar").onclick = () => {
+        APP_STATE.avaliador = document.getElementById("avaliador").value;
+        APP_STATE.local = document.getElementById("local").value;
+        APP_STATE.data = document.getElementById("data_visita").value;
+
+        if (!APP_STATE.avaliador || !APP_STATE.local || !APP_STATE.data) return alert("Preencha tudo!");
+
+        localStorage.setItem("avaliador", APP_STATE.avaliador);
+        localStorage.setItem("local", APP_STATE.local);
+        localStorage.setItem("data", APP_STATE.data);
+        
+        showScreen("screen-select-roteiro");
+    };
+}
+    // Se já havia uma vistoria em curso, podemos pular direto para a seleção de roteiro
+    if (APP_STATE.local && APP_STATE.avaliador) {
+        showScreen("screen-select-roteiro");
+    } else {
+        showScreen("screen-cadastro");
+ }
+
+// ============================================================
+// 12. EXPORTAÇÃO E RESET
+// ============================================================
+
+function baixarExcelConsolidado() {
+    const local = APP_STATE.local || "Sem_Local";
+    // Formatação de data simples para o nome do arquivo
+    const d = new Date();
+    const dataFicheiro = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+    const nomeArquivo = `visita_completa_${local.replace(/\s+/g, '_')}_${dataFicheiro}.xlsx`;
+
+    const wb = XLSX.utils.book_new();
+
+    const configuracao = [
+        { nome: "Geral", id: "geral", fonte: ROTEIRO_GERAL },
+        { nome: "PGE", id: "pge", fonte: ROTEIRO_PGE },
+        { nome: "Acid. Ambientais", id: "aa", fonte: ROTEIRO_AA }
+    ];
+
+    configuracao.forEach(config => {
+        // Mapeia a FONTE fixa para garantir que TODAS as perguntas existam no Excel
+        const linhas = config.fonte.map(p => {
+            const resp = (APP_STATE.respostas[config.id] && APP_STATE.respostas[config.id][p.id]) || "";
+            
+            return {
+                "local": APP_STATE.local,
+                "secao": p.Secao || p["Seção"] || "",
+                "formulario": config.id,
+                "id_pergunta": p.id,
+                "pergunta": p.Pergunta,
+                "resposta": Array.isArray(resp) ? "" : resp, 
+                "fotos": Array.isArray(resp) ? resp.join("; ") : "" 
+            };
+        });
+
+        const ws = XLSX.utils.json_to_sheet(linhas);
+        XLSX.utils.book_append_sheet(wb, ws, config.nome);
+    });
+
+    XLSX.writeFile(wb, nomeArquivo);
+}
+async function confirmarNovaVistoria() {
+    const msg = "Tem certeza que deseja iniciar uma nova vistoria? Todos os dados atuais (respostas e fotos) serão apagados permanentemente.";
+    
+    if (confirm(msg)) {
+        try {
+            // 1. Limpa o IndexedDB (Respostas e Fotos)
+            const req = indexedDB.deleteDatabase(DB_NAME);
+            
+            req.onerror = () => {
+                console.error("Erro ao apagar banco de dados.");
+                alert("Erro ao limpar dados antigos. Tente fechar outras abas do app.");
+            };
+
+            req.onsuccess = () => {
+                console.log("Banco de dados apagado com sucesso.");
+                
+                // 2. Limpa o LocalStorage (Dados do cabeçalho: avaliador, local, etc)
+                localStorage.clear();
+
+                // 3. Limpa o estado da memória
+                APP_STATE.respostas = { geral: {}, pge: {}, aa: {} };
+                APP_STATE.fotos = {};
+                
+                // 4. Recarrega a página para o estado inicial
+                location.reload();
+            };
+
+            // Caso o banco esteja bloqueado por outra aba aberta
+            req.onblocked = () => {
+                alert("Por favor, feche outras abas deste aplicativo abertas para poder reiniciar.");
+            };
+
+        } catch (err) {
+            console.error("Falha ao reiniciar:", err);
+            // Fallback caso o IndexedDB falhe
+            localStorage.clear();
+            location.reload();
+        }
     }
+
 }
 
-// ---------------- HISTÓRICO ----------------
-async function renderHistorico() {
-  const container = document.getElementById("lista-historico");
-  container.innerHTML = "<p class='text-sm text-gray-400'>Carregando...</p>";
-
-  const db = await openDB();
-  const tx = db.transaction("historico_visitas", "readonly");
-  const store = tx.objectStore("historico_visitas");
-  const req = store.getAll();
-
-  req.onsuccess = () => {
-    const dados = req.result;
-    if (dados.length === 0) {
-      container.innerHTML = "<p class='text-sm text-gray-400'>Nenhuma vistoria registrada.</p>";
-      return;
-    }
-
-    container.innerHTML = dados.reverse().map(v => `
-      <div class="bg-white p-4 rounded-2xl shadow border-l-4 border-[#0C3C78]">
-        <p class="font-bold text-sm">${v.local}</p>
-        <p class="text-[10px] text-gray-500">${v.data_visita} • ${v.tipo_roteiro?.toUpperCase()}</p>
-      </div>
-    `).join("");
-  };
-}
-
-// ---------------- INIT ----------------
-function initApp() {
-  document.getElementById("local").innerHTML =
-    LOCAIS_VISITA.map(l => `<option>${l}</option>`).join("");
-  showScreen("screen-cadastro");
-}
-
-// ---------------- EXPORTA GLOBAL ----------------
-window.initCadastro = initCadastro;
+// ------------------------------------------------------------
+// VINCULAÇÕES GLOBAIS (FINAL DO ARQUIVO) - Versão Blindada
+// ------------------------------------------------------------
+window.showScreen = showScreen;
 window.selectRoteiro = selectRoteiro;
-window.finalizarVistoria = finalizarVistoria;
-window.voltarParaRoteiros = voltarParaRoteiros;
-window.abrirHistorico = abrirHistorico;
+window.abrirCamera = abrirCamera;
+window.fecharModal = fecharModal;
+window.registrarResposta = registrarResposta;
+window.atualizarCheckboxes = atualizarCheckboxes;
+window.exibirImagemApoioSublocal = exibirImagemApoioSublocal;
+window.montarSecoes = montarSecoes;
+window.baixarExcelConsolidado = baixarExcelConsolidado; 
+window.confirmarNovaVistoria = confirmarNovaVistoria;
 
 document.addEventListener("DOMContentLoaded", initApp);
-

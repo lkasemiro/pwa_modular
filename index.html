@@ -1,158 +1,191 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Vistoria Ambiental CEDAE</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0C3C78">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <link rel="shortcut icon" href="icon.png" type="image/png">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Supervisão Ambiental – CEDAE</title>
 
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" href="icon.png">
+    <link rel="manifest" href="manifest.json">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <style>
-        body { -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; }
-        input, select, textarea { font-size: 16px !important; }
         .animate-in { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .hidden { display: none !important; }
-        .nav-active { border-bottom-color: #0C3C78; color: #0C3C78; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 
-<body class="bg-gray-100 text-gray-900 font-sans antialiased select-none">
+<body class="bg-gray-50 text-gray-900 font-sans antialiased">
 
-    <div id="message-box" class="hidden fixed top-4 left-1/2 -translate-x-1/2 z-50 p-4 rounded-xl shadow-2xl text-white font-bold transition-all duration-300"></div>
+<!-- ===================================================== -->
+<!-- SCREEN: CADASTRO -->
+<!-- ===================================================== -->
+<section id="screen-cadastro" class="max-w-2xl mx-auto p-4 min-h-screen flex flex-col justify-center">
+    <div class="text-center mb-8">
+        <img src="icon.png" class="h-24 mx-auto mb-4">
+        <h1 class="text-2xl font-black text-blue-900">VISTORIA TÉCNICA</h1>
+        <p class="text-gray-500 uppercase tracking-widest text-xs">Supervisão Ambiental</p>
+    </div>
 
-    <header class="bg-[#0C3C78] text-white p-6 rounded-b-3xl shadow-xl sticky top-0 z-40">
-        <div class="flex justify-between items-center">
-            <div class="flex items-center gap-3">
-                <div class="bg-white p-1.5 rounded-xl">
-                    <img src="icon.png" alt="CEDAE" class="w-10 h-10 object-contain">
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight">Vistoria Ambiental</h1>
-                    <p class="text-blue-200 text-[10px] uppercase font-semibold">Supervisão Técnica GLA</p>
-                </div>
+    <div class="bg-white p-8 rounded-[2rem] shadow-xl">
+        <div class="space-y-5">
+
+            <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Avaliador</label>
+                <input id="avaliador" type="text" class="w-full p-4 bg-gray-50 rounded-2xl">
             </div>
-            
-            <div class="bg-white/10 px-3 py-1.5 rounded-full flex items-center gap-2 backdrop-blur-sm border border-white/10">
-                <span class="relative flex h-2 w-2">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                </span>
-                <span id="gps-status" class="text-[10px] font-mono font-bold text-green-100">GPS ON</span>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase mb-1 ml-1">Local da Unidade</label>
+                    <select id="local" class="w-full p-4 bg-gray-50 border-none rounded-2xl focus:ring-2 focus:ring-blue-500 appearance-none"></select>
             </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Data</label>
+                <input id="data_visita" type="date" class="w-full p-4 bg-gray-50 rounded-2xl">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Colaborador</label>
+                <input id="colaborador" type="text" class="w-full p-4 bg-gray-50 rounded-2xl">
+            </div>
+
+            <button id="btn-cadastro-continuar"
+                class="w-full bg-blue-700 text-white py-5 rounded-2xl font-black">
+                INICIAR VISTORIA
+            </button>
+
         </div>
-    </header>
+    </div>
+</section>
 
-    <nav class="flex px-6 mt-4 gap-4 sticky top-[92px] bg-gray-100/80 backdrop-blur-md z-30 py-2">
-        <button id="btn-nav-form" onclick="abrirCadastro()" class="flex-1 pb-2 border-b-4 border-[#0C3C78] font-bold text-[#0C3C78] transition-all">
-            Vistoria
+
+<!-- ===================================================== -->
+<!-- SCREEN: SELEÇÃO DE ROTEIRO -->
+<!-- ===================================================== -->
+<section id="screen-select-roteiro" class="max-w-xl mx-auto p-6 hidden min-h-screen flex flex-col justify-center">
+    <h2 class="text-2xl font-black text-center mb-8">Selecione o formulário</h2>
+
+    <div class="grid gap-4">
+        <button onclick="selectRoteiro('geral')" class="p-6 bg-white rounded-3xl shadow">
+            FORMULÁRIO GERAL
         </button>
-        <button id="btn-nav-hist" onclick="abrirHistorico()" class="flex-1 pb-2 border-b-4 border-transparent text-gray-400 font-bold transition-all">
-            Histórico
+
+        <button onclick="selectRoteiro('pge')" class="p-6 bg-white rounded-3xl shadow">
+            PGE – Gerenciamento de Efluentes
         </button>
-    </nav>
 
-    <main class="p-6 pb-24">
+        <button onclick="selectRoteiro('aa')" class="p-6 bg-white rounded-3xl shadow">
+            Acidentes Ambientais
+        </button>
+    </div>
+</section>
 
-        <section id="screen-cadastro" class="space-y-4 animate-in">
-            <div class="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
-                <h2 class="font-bold text-gray-800 mb-5 flex items-center gap-2 text-lg">📍 Identificação</h2>
 
-                <div class="space-y-4">
-                    <div class="space-y-1">
-                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Avaliador (Técnico)</label>
-                        <input id="avaliador" type="text" placeholder="Nome Completo" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Colaborador Local</label>
-                        <input id="colaborador_gla" type="text" placeholder="Quem acompanhou" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Unidade / Local</label>
-                        <select id="local" onchange="capturarGPS('inicial')" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none"></select>
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[10px] uppercase font-bold text-gray-400 ml-1">Data</label>
-                        <input type="date" id="data_visita" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-2xl outline-none">
-                    </div>
-                </div>
+<!-- ===================================================== -->
+<!-- SCREEN: FORMULÁRIO -->
+<!-- ===================================================== -->
+<section id="screen-formulario" class="max-w-3xl mx-auto p-4 hidden pb-32">
 
-                <div class="mt-6 p-4 bg-blue-50/50 rounded-2xl border border-blue-100 flex items-start gap-3">
-                    <span class="text-blue-500">📡</span>
-                    <div>
-                        <p class="text-[11px] font-mono text-blue-800">Coordenadas de Início:</p>
-                        <p id="display-coords-inicial" class="text-xs font-bold text-blue-900 font-mono tracking-tighter">Aguardando local...</p>
-                    </div>
-                </div>
+    <div class="sticky top-0 bg-gray-50 z-40 border-b mb-4">
+        <div class="flex justify-between items-center mb-3">
+            <button onclick="showScreen('screen-select-roteiro')" class="text-blue-600 text-sm">
+                ← Voltar
+            </button>
+            <span id="roteiro-atual-label" class="text-xs font-black text-gray-400">ROTEIRO</span>
+            <div></div>
+        </div>
 
-                <button onclick="initCadastro()" class="mt-8 w-full bg-[#0C3C78] text-white py-5 rounded-2xl font-bold shadow-lg active:scale-95 transition-all">
-                    INICIAR VISTORIA
-                </button>
-            </div>
+        <div id="sublocal_box" class="hidden mb-3">
+            <label class="block text-xs font-bold text-gray-400 mb-1">Sublocal</label>
+            <select id="sublocal_select" class="w-full p-3 border rounded-xl"></select>
+        </div>
 
-            <div class="p-6 bg-white/50 rounded-3xl border border-dashed border-gray-300">
-                <h3 class="text-xs font-bold text-gray-500 uppercase mb-3 tracking-widest">Guia Rápido</h3>
-                <div class="space-y-3">
-                    <div class="flex gap-3 items-center text-gray-600">
-                        <span class="bg-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">1</span>
-                        <p class="text-[11px]">Preencha os dados e aguarde o sinal do <b>GPS</b>.</p>
-                    </div>
-                    <div class="flex gap-3 items-center text-gray-600">
-                        <span class="bg-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">2</span>
-                        <p class="text-[11px]">Selecione o roteiro. No PGE, use o filtro de <b>Sublocal</b>.</p>
-                    </div>
-                    <div class="flex gap-3 items-center text-gray-600">
-                        <span class="bg-white w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shadow-sm">3</span>
-                        <p class="text-[11px]">Ao finalizar, o <b>Excel</b> será gerado com todas as fotos.</p>
-                    </div>
-                </div>
-            </div>
-        </section>
+        <div id="secao_box" class="mb-3">
+            <label class="block text-xs font-bold text-gray-400 mb-1">Seção</label>
+            <select id="secao_select" class="w-full p-3 border rounded-xl"></select>
+        </div>
+    </div>
 
-        <section id="screen-select-roteiro" class="hidden space-y-4 animate-in">
-            <h2 class="font-bold text-[#0C3C78] text-lg px-2">Selecione o Formulário</h2>
-            <div id="lista-roteiros" class="grid grid-cols-1 gap-3">
-                </div>
-            <button onclick="showScreen('screen-cadastro')" class="w-full py-4 text-gray-400 font-bold text-sm">❮ Voltar</button>
-        </section>
+    <div id="conteudo_formulario" class="space-y-4 animate-in"></div>
 
-        <section id="screen-formulario" class="hidden animate-in">
-            <div id="sublocal_box" class="hidden bg-[#0C3C78] p-5 rounded-3xl shadow-lg mb-6 text-white">
-                <label class="text-[10px] uppercase font-bold text-blue-200">Sublocal Atual</label>
-                <select id="sublocal_select" class="w-full mt-1 bg-white/10 text-white border-none rounded-xl p-2 font-bold outline-none"></select>
-            </div>
+    <div class="fixed bottom-0 left-0 right-0 p-4 bg-white border-t">
+        <button onclick="showScreen('screen-final')"
+            class="w-full bg-green-600 text-white py-4 rounded-2xl font-bold">
+            FINALIZAR
+        </button>
+    </div>
+</section>
 
-            <div id="conteudo_formulario" class="space-y-4"></div>
-            
-            <div class="fixed bottom-6 left-0 right-0 px-6 z-50">
-                <button onclick="finalizarEExportar()" class="w-full bg-green-600 text-white py-5 rounded-3xl font-extrabold shadow-2xl active:scale-95 transition-all flex justify-center items-center gap-2 border-4 border-white">
-                    💾 FINALIZAR E SALVAR EXCEL
-                </button>
-            </div>
-        </section>
 
-        <section id="screen-historico" class="hidden space-y-4 animate-in">
-            <div class="flex justify-between items-center px-2">
-                <h2 class="font-bold text-[#0C3C78] text-lg">Série Histórica</h2>
-                <button onclick="apagarBanco()" class="text-[10px] font-bold text-red-500 bg-red-50 px-3 py-2 rounded-lg">LIMPAR DISPOSITIVO</button>
-            </div>
-            <div id="lista-historico" class="space-y-3">
-                </div>
-        </section>
+<!-- ===================================================== -->
+<!-- SCREEN: FINAL -->
+<!-- ===================================================== -->
+<section id="screen-final" class="max-w-xl mx-auto p-8 hidden min-h-screen flex flex-col justify-center text-center">
+    <div class="bg-white p-8 rounded-[3rem] shadow-xl">
 
-    </main>
+        <h2 class="text-2xl font-black mb-2">Vistoria Concluída</h2>
+        <p class="text-gray-500 mb-8">Baixe o relatório consolidado.</p>
 
-    <script src="roteiros.js"></script>
-    <script src="app.js"></script>
-    <script src="indexedDB.js"></script>
-    
+        <div class="space-y-3">
+            <button onclick="baixarExcelConsolidado()"
+                class="w-full bg-green-600 text-white py-4 rounded-2xl font-bold">
+                BAIXAR XLSX
+            </button>
+
+            <button onclick="confirmarNovaVistoria()"
+                class="w-full bg-gray-200 text-gray-600 py-4 rounded-2xl font-bold">
+                NOVA VISTORIA
+            </button>
+        </div>
+    </div>
+</section>
+
+
+<!-- ===================================================== -->
+<!-- MODAL DE CÂMERA -->
+<!-- ===================================================== -->
+<div id="camera-modal" class="fixed inset-0 bg-black/90 hidden z-[60] flex flex-col items-center justify-center p-4">
+    <div class="relative w-full max-w-lg aspect-[3/4] bg-black rounded-2xl overflow-hidden">
+        <video id="video" autoplay playsinline class="w-full h-full object-cover"></video>
+        <canvas id="canvas" class="hidden"></canvas>
+
+        <button id="capture-photo"
+            class="absolute bottom-6 left-1/2 -translate-x-1/2 w-20 h-20 bg-white rounded-full">
+        </button>
+    </div>
+
+    <button onclick="fecharModal()" class="mt-6 text-white text-xs uppercase">
+        Cancelar
+    </button>
+</div>
+
+
+<!-- ===================================================== -->
+<!-- SCRIPTS -->
+<!-- ===================================================== -->
+<script src="roteiros.js"></script>
+<script src="indexedDB.js"></script>
+<script src="app.js"></script>
+
+<script>
+if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./service-worker.js");
+    });
+}
+</script>
+
 </body>
 </html>
-  

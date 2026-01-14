@@ -1,83 +1,143 @@
-// =============================================
-// SERVICE WORKER – PWA Supervisão Ambiental CEDAE
-// Versão: v14 - Foco em Georreferenciamento Offline
-// =============================================
+// ============================================================
+// INDEXEDDB.JS – PERSISTÊNCIA OFFLINE (CEDAE)
+// ============================================================
 
-const CACHE_NAME = "cedae-pwa-v14"; 
+// ------------------------------------------------------------
+// 1. CONSTANTES DO BANCO
+// ------------------------------------------------------------
+const DB_NAME = "CEDAE_VistoriasDB";
+const DB_VERSION = 3;
 
-// Arquivos essenciais para o funcionamento sem internet
-const APP_SHELL = [
-  "./",
-  "./index.html",
-  "./manifest.json",
-  "./app.js",
-  "./indexedDB.js",
-  "./roteiros.js",
-  "./style.css",
-  "./icon.png"
-];
+const STORE_RESPOSTAS = "vistorias";
+const STORE_FOTOS = "fotos";
 
-// 1. INSTALL – Cache Inicial (Obrigatório)
-self.addEventListener("install", (event) => {
-  console.log("SW: Cacheando núcleo do app...");
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      // Se um desses arquivos falhar (404), o SW não instala.
-      return cache.addAll(APP_SHELL);
-    })
-  );
-  self.skipWaiting();
-});
+// ------------------------------------------------------------
+// 2. API CENTRAL DO BANCO
+// ------------------------------------------------------------
+const DB_API = {
 
-// 2. ACTIVATE – Limpeza de versões obsoletas
-self.addEventListener("activate", (event) => {
-  console.log("SW: Limpando caches antigos...");
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys.filter((key) => key !== CACHE_NAME)
-            .map((key) => caches.delete(key))
-      )
-    )
-  );
-  self.clients.claim();
-});
+    // --------------------------------------------------------
+    // ABERTURA / UPGRADE DO BANCO
+    // --------------------------------------------------------
+    async openDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
 
-// 3. FETCH – Estratégia "Cache First" Otimizada
-// Prioriza o que já está baixado para garantir velocidade instantânea
-self.addEventListener("fetch", (event) => {
-  const request = event.request;
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
 
-  // Ignorar requisições de extensões ou protocolos não-http
-  if (!request.url.startsWith('http')) return;
+                // Store principal: estado completo da vistoria
+                if (!db.objectStoreNames.contains(STORE_RESPOSTAS)) {
+                    db.createObjectStore(STORE_RESPOSTAS, { keyPath: "db_id" });
+                }
 
-  event.respondWith(
-    caches.match(request).then((cacheRes) => {
-      // Retorna o cache se encontrar (mesmo offline)
-      if (cacheRes) return cacheRes;
+                // Store de fotos
+                if (!db.objectStoreNames.contains(STORE_FOTOS)) {
+                    const store = db.createObjectStore(STORE_FOTOS, { keyPath: "foto_id" });
+                    store.createIndex("pergunta_id", "pergunta_id", { unique: false });
+                }
+            };
 
-      // Se não estiver no cache, busca na rede e salva para a próxima vez
-      return fetch(request)
-        .then((networkRes) => {
-          // Só salva no cache se a resposta for válida
-          if (!networkRes || networkRes.status !== 200) {
-            return networkRes;
-          }
-
-          const responseToCache = networkRes.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
-          });
-
-          return networkRes;
-        })
-        .catch((err) => {
-          // Se falhar a rede (OFFLINE TOTAL) e não tiver cache:
-          if (request.mode === 'navigate') {
-            return caches.match("./index.html");
-          }
-          console.error("SW: Recurso não disponível offline:", request.url);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject("Erro ao abrir IndexedDB");
         });
-    })
-  );
-});
+    },
+
+    // --------------------------------------------------------
+    // SALVAR ESTADO COMPLETO DA VISTORIA
+    // --------------------------------------------------------
+    async saveVisita(estado) {
+        try {
+            const db = await this.openDB();
+            const tx = db.transaction(STORE_RESPOSTAS, "readwrite");
+            const store = tx.objectStore(STORE_RESPOSTAS);
+
+            // Clonagem defensiva
+            const dados = JSON.parse(JSON.stringify(estado));
+            dados.db_id = "visita_atual";
+            dados.ultima_atualizacao = new Date().toISOString();
+
+            return new Promise((resolve, reject) => {
+                const req = store.put(dados);
+                req.onsuccess = () => resolve(true);
+                req.onerror = () => reject("Erro ao salvar vistoria");
+            });
+
+        } catch (err) {
+            console.error("Erro ao salvar vistoria:", err);
+        }
+    },
+
+    // --------------------------------------------------------
+    // CARREGAR ÚLTIMA VISTORIA SALVA
+    // --------------------------------------------------------
+    async loadVisita() {
+        const db = await this.openDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(STORE_RESPOSTAS, "readonly");
+            const store = tx.objectStore(STORE_RESPOSTAS);
+            const req = store.get("visita_atual");
+
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => resolve(null);
+        });
+    },
+
+    // --------------------------------------------------------
+    // SALVAR FOTO
+    // --------------------------------------------------------
+    async saveFoto(fotoId, blob, idPergunta) {
+        const db = await this.openDB();
+        const tx = db.transaction(STORE_FOTOS, "readwrite");
+        const store = tx.objectStore(STORE_FOTOS);
+
+        return store.put({
+            foto_id: fotoId,
+            pergunta_id: idPergunta,
+            blob,
+            timestamp: new Date().toISOString()
+        });
+    },
+
+    // --------------------------------------------------------
+    // OBTER FOTOS DE UMA PERGUNTA
+    // --------------------------------------------------------
+    async getFotosPergunta(idPergunta) {
+        const db = await this.openDB();
+        return new Promise((resolve) => {
+            const tx = db.transaction(STORE_FOTOS, "readonly");
+            const store = tx.objectStore(STORE_FOTOS);
+            const index = store.index("pergunta_id");
+            const req = index.getAll(idPergunta);
+
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => resolve([]);
+        });
+    }
+};
+
+// ------------------------------------------------------------
+// 3. FUNÇÕES GLOBAIS USADAS PELO APP.JS
+// ------------------------------------------------------------
+
+// 🔁 Backup automático do estado (respostas, sublocal, fotos refs)
+window.saveAnswerToDB = () => {
+    if (typeof APP_STATE === "undefined") return;
+
+    DB_API.saveVisita(APP_STATE)
+        .then(() => console.log("💾 Backup automático salvo"))
+        .catch(err => console.error("Erro no backup:", err));
+};
+
+// 📸 Persistência de fotos
+window.savePhotoToDB = (fotoId, blob, idPergunta) => {
+    DB_API.saveFoto(fotoId, blob, idPergunta)
+        .then(() => console.log("📸 Foto salva no IndexedDB"))
+        .catch(err => console.error("Erro ao salvar foto:", err));
+};
+
+// ------------------------------------------------------------
+// 4. EXPOSIÇÃO GLOBAL (SE NECESSÁRIO)
+// ------------------------------------------------------------
+window.DB_API = DB_API;
+window.DB_NAME = DB_NAME;

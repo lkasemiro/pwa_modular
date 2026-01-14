@@ -1,4 +1,4 @@
-const ROTEIRO_PGE = [
+window.ROTEIRO_PGE = [
   {
     "id": "pge_1",
     "Secao": "PGE",
@@ -418,7 +418,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_33",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Casa dos operadores a ser demolida",
     "Pergunta": "N° de Banheiros",
     "TipoInput": "radio",
@@ -431,7 +431,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_34",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Casa dos operadores a ser demolida",
     "Pergunta": "Cozinha/Copa",
     "TipoInput": "radio",
@@ -444,7 +444,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_35",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Casa dos operadores a ser demolida",
     "Pergunta": "Laboratório",
     "TipoInput": "radio",
@@ -457,7 +457,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_36",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Casa dos operadores a ser demolida",
     "Pergunta": "Situação de uso da unidade",
     "TipoInput": "radio",
@@ -470,7 +470,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_37",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Casa dos operadores a ser demolida",
     "Pergunta": "Possui trat. de efluente instalado?",
     "TipoInput": "radio",
@@ -483,7 +483,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_38",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Casa dos operadores a ser demolida",
     "Pergunta": "Tipo de tratamento",
     "TipoInput": "radio",
@@ -496,7 +496,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_39",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Casa dos operadores a ser demolida",
     "Pergunta": "Foto biodigestor",
     "TipoInput": "file",
@@ -509,7 +509,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_40",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Casa dos operadores a ser demolida",
     "Pergunta": "Situação do  sistema de tramento",
     "TipoInput": "radio",
@@ -522,7 +522,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_41",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova base dos operadores - Casa em reforma",
     "Pergunta": "N° de Banheiros",
     "TipoInput": "radio",
@@ -535,7 +535,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_42",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova base dos operadores - Casa em reforma",
     "Pergunta": "Cozinha/Copa",
     "TipoInput": "radio",
@@ -548,7 +548,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_43",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova base dos operadores - Casa em reforma",
     "Pergunta": "Laboratório",
     "TipoInput": "radio",
@@ -561,7 +561,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_44",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova base dos operadores - Casa em reforma",
     "Pergunta": "Situação de uso da unidade",
     "TipoInput": "radio",
@@ -574,7 +574,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_45",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova base dos operadores - Casa em reforma",
     "Pergunta": "Possui trat. de efluente instalado?",
     "TipoInput": "radio",
@@ -587,7 +587,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_46",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova base dos operadores - Casa em reforma",
     "Pergunta": "Tipo de tratamento",
     "TipoInput": "radio",
@@ -600,7 +600,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_47",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova base dos operadores - Casa em reforma",
     "Pergunta": "Foto biodigestor",
     "TipoInput": "file",
@@ -613,7 +613,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_48",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova base dos operadores - Casa em reforma",
     "Pergunta": "Situação do  sistema de tramento",
     "TipoInput": "radio",
@@ -626,7 +626,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_49",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Banheiro casinha",
     "Pergunta": "N° de Banheiros",
     "TipoInput": "radio",
@@ -639,7 +639,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_50",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Banheiro casinha",
     "Pergunta": "Cozinha/Copa",
     "TipoInput": "radio",
@@ -652,7 +652,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_51",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Banheiro casinha",
     "Pergunta": "Laboratório",
     "TipoInput": "radio",
@@ -665,7 +665,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_52",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Banheiro casinha",
     "Pergunta": "Situação de uso da unidade",
     "TipoInput": "radio",
@@ -678,7 +678,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_53",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Banheiro casinha",
     "Pergunta": "Possui trat. de efluente instalado?",
     "TipoInput": "radio",
@@ -691,7 +691,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_54",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Banheiro casinha",
     "Pergunta": "Tipo de tratamento",
     "TipoInput": "radio",
@@ -704,7 +704,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_55",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Banheiro casinha",
     "Pergunta": "Foto biodigestor",
     "TipoInput": "file",
@@ -717,7 +717,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_56",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Banheiro casinha",
     "Pergunta": "Situação do  sistema de tramento",
     "TipoInput": "radio",
@@ -730,7 +730,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_57",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Prédio do Laboratório",
     "Pergunta": "N° de Banheiros",
     "TipoInput": "radio",
@@ -743,7 +743,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_58",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Prédio do Laboratório",
     "Pergunta": "Cozinha/Copa",
     "TipoInput": "radio",
@@ -756,7 +756,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_59",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Prédio do Laboratório",
     "Pergunta": "Laboratório",
     "TipoInput": "radio",
@@ -769,7 +769,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_60",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Prédio do Laboratório",
     "Pergunta": "Situação de uso da unidade",
     "TipoInput": "radio",
@@ -782,7 +782,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_61",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Prédio do Laboratório",
     "Pergunta": "Possui trat. de efluente instalado?",
     "TipoInput": "radio",
@@ -795,7 +795,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_62",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Prédio do Laboratório",
     "Pergunta": "Tipo de tratamento",
     "TipoInput": "radio",
@@ -808,7 +808,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_63",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Prédio do Laboratório",
     "Pergunta": "Foto biodigestor",
     "TipoInput": "file",
@@ -821,7 +821,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_64",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Prédio do Laboratório",
     "Pergunta": "Situação do  sistema de tramento",
     "TipoInput": "radio",
@@ -834,7 +834,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_65",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova Guarita",
     "Pergunta": "N° de Banheiros",
     "TipoInput": "radio",
@@ -847,7 +847,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_66",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova Guarita",
     "Pergunta": "Cozinha/Copa",
     "TipoInput": "radio",
@@ -860,7 +860,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_67",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova Guarita",
     "Pergunta": "Laboratório",
     "TipoInput": "radio",
@@ -873,7 +873,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_68",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova Guarita",
     "Pergunta": "Situação de uso da unidade",
     "TipoInput": "radio",
@@ -886,7 +886,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_69",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova Guarita",
     "Pergunta": "Possui trat. de efluente instalado?",
     "TipoInput": "radio",
@@ -899,7 +899,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_70",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova Guarita",
     "Pergunta": "Tipo de tratamento",
     "TipoInput": "radio",
@@ -912,7 +912,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_71",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova Guarita",
     "Pergunta": "Foto biodigestor",
     "TipoInput": "file",
@@ -925,7 +925,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_72",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Nova Guarita",
     "Pergunta": "Situação do  sistema de tramento",
     "TipoInput": "radio",
@@ -938,7 +938,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_73",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Guarita",
     "Pergunta": "N° de Banheiros",
     "TipoInput": "radio",
@@ -951,7 +951,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_74",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Guarita",
     "Pergunta": "Cozinha/Copa",
     "TipoInput": "radio",
@@ -964,7 +964,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_75",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Guarita",
     "Pergunta": "Laboratório",
     "TipoInput": "radio",
@@ -977,7 +977,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_76",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Guarita",
     "Pergunta": "Situação de uso da unidade",
     "TipoInput": "radio",
@@ -990,7 +990,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_77",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Guarita",
     "Pergunta": "Possui trat. de efluente instalado?",
     "TipoInput": "radio",
@@ -1003,7 +1003,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_78",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Guarita",
     "Pergunta": "Tipo de tratamento",
     "TipoInput": "radio",
@@ -1016,7 +1016,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_79",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Guarita",
     "Pergunta": "Foto biodigestor",
     "TipoInput": "file",
@@ -1029,7 +1029,7 @@ const ROTEIRO_PGE = [
   {
     "id": "pge_80",
     "Secao": "PGE",
-    "Local": "Rio D' Ouro",
+    "Local": "Rio D'Ouro",
     "Sublocal": "Guarita",
     "Pergunta": "Situação do  sistema de tramento",
     "TipoInput": "radio",
@@ -3744,7 +3744,7 @@ const ROTEIRO_PGE = [
     "ImagemApoio": ""
   }
 ];
-const ROTEIRO_GERAL = [
+window.ROTEIRO_GERAL = [
   {
     "id": "1",
     "Secao": "Geral",
@@ -4418,7 +4418,7 @@ const ROTEIRO_GERAL = [
     "Sublocal": ""
   }
 ];
-const ROTEIRO_AA = [
+window.ROTEIRO_AA = [
   {
     "id": "aa_01",
     "Secao": "Identificação",
