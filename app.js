@@ -108,7 +108,7 @@ function carregarMetaDoLocalStorage() {
 
 
  carregarMetaDoLocalStorage();
-    initCadastro();
+ initCadastro();
 // ============================================================
 // 5. SELEÇÃO DE ROTEIRO (FLUXO PRINCIPAL)
 // ============================================================
@@ -224,55 +224,31 @@ function montarSublocaisFiltrados(localEscolhido) {
 
 // 1. Limpa qualquer imagem de apoio que já esteja na tela
 function exibirImagemApoioSublocal(sublocal) {
+    const containerForm = document.getElementById("conteudo_formulario");
     const existente = document.getElementById("container_imagem_apoio_sublocal");
     if (existente) existente.remove();
 
-    // 2. Segurança: Só executa se estivermos no roteiro PGE
     if (APP_STATE.tipoRoteiro !== "pge" || !sublocal) return;
 
-    // 3. Busca a imagem na base bruta (ROTEIRO_PGE) 
-    // Filtramos pelo Local ativo e pelo Sublocal selecionado que possua Base64
     const itemComImagem = window.ROTEIRO_PGE.find(p => 
         p.Local === APP_STATE.local && 
         p.Sublocal === sublocal && 
-        p.ImagemApoio && 
-        p.ImagemApoio.length > 50 // Verifica se tem conteúdo Base64 real
+        p.ImagemApoio && p.ImagemApoio.length > 100
     );
 
     if (itemComImagem) {
-        const container = document.createElement("div");
-        container.id = "container_imagem_apoio_sublocal";
-        
-        // Estilização para Mobile (Card com sombra e borda azul clara)
-        container.className = "bg-white p-4 rounded-2xl shadow-sm mb-6 border-2 border-blue-100 animate-in";
-        
-        // Tratamento da String Base64 (Garante o prefixo se não existir)
-        let src = itemComImagem.ImagemApoio;
-        if (!src.startsWith("data:image")) {
-            src = `data:image/jpeg;base64,${src}`;
-        }
-
-        container.innerHTML = `
-            <p class="text-[10px] font-black text-blue-600 uppercase mb-3 text-center tracking-widest">
-                📍 REFERÊNCIA VISUAL: ${sublocal}
-            </p>
-            <div class="rounded-xl overflow-hidden bg-gray-50 border border-gray-100">
-                <img src="${src}" 
-                     class="w-full h-auto block mx-auto shadow-inner" 
-                     style="max-height: 300px; object-fit: contain;"
-                     onerror="this.parentElement.innerHTML='<p class=\"p-4 text-center text-xs text-gray-400\">Imagem de apoio não disponível</p>'">
-            </div>
+        const divImg = document.createElement("div");
+        divImg.id = "container_imagem_apoio_sublocal";
+        divImg.className = "bg-white p-2 rounded-2xl shadow-sm mb-6 border-2 border-blue-100";
+        divImg.innerHTML = `
+            <p class="text-[10px] font-bold text-blue-500 mb-1">IMAGEM DE APOIO</p>
+            <img src="${itemComImagem.ImagemApoio}" class="w-full h-auto rounded-lg shadow-inner" 
+                 onclick="window.open(this.src, '_blank')">
         `;
-        
-        // 4. Inserção no topo do formulário
-        const formRoot = document.getElementById("conteudo_formulario");
-        if (formRoot) {
-            // prepend coloca no topo, antes de todas as perguntas daquela seção
-            formRoot.prepend(container);
-        }
+        // Insere no topo do formulário
+        containerForm.prepend(divImg);
     }
 }
-
 
 // ============================================================
 // 8. RENDERIZAÇÃO DO FORMULÁRIO
@@ -327,7 +303,8 @@ function renderFormulario(secaoFiltrada = null) {
 // ============================================================
 
 function renderInput(p, container, valorSalvo) {
-    const tipoInput = p.TipoInput; // Corrigido de 'tipo' para 'tipoInput'
+    const tipoInput = p.TipoInput; 
+    container.innerHTML = ""; // limpa container interno
 
     if (tipoInput === "text" || tipoInput === "textarea") {
         const input = document.createElement(tipoInput === "text" ? "input" : "textarea");
@@ -350,36 +327,49 @@ function renderInput(p, container, valorSalvo) {
             container.appendChild(label);
         });
 
-    } else if (tipoInput === "checkboxgroup") {
+    } else if (tipoInput === "checkboxGroup") {
         const opcoes = (p.Opcoes || "").split(";").filter(Boolean);
+        // CORREÇÃO: Garante que a leitura dos marcados seja limpa
         const marcados = (valorSalvo || "").split(";").map(v => v.trim());
         
         opcoes.forEach(opt => {
-            const isChecked = marcados.includes(opt) ? "checked" : "";
+            const isChecked = marcados.includes(opt.trim()) ? "checked" : "";
             const label = document.createElement("label");
             label.className = "flex items-center gap-3 p-3 border rounded-xl mb-2 hover:bg-gray-50 cursor-pointer";
             label.innerHTML = `
-                <input type="checkbox" name="${p.id}" value="${opt}" ${isChecked} 
-                       onchange="atualizarCheckboxes('${p.id}')" class="w-5 h-5 text-green-600 rounded">
+                <input type="checkbox" name="${p.id}" value="${opt.trim()}" ${isChecked} 
+                       onchange="gerenciarMudancaCheckbox('${p.id}')" class="w-5 h-5 text-green-600 rounded">
                 <span class="text-sm font-medium text-gray-700">${opt}</span>
             `;
             container.appendChild(label);
         });
 
     } else if (tipoInput === "file") {
-        container.innerHTML = `
-            <button onclick="abrirCamera('${p.id}')" class="bg-amber-500 hover:bg-amber-600 text-white w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors">
-                📷 Capturar Foto
+    // Container para o botão e a galeria de miniaturas
+    container.innerHTML = `
+        <div class="space-y-3">
+            <button type="button" onclick="abrirCamera('${p.id}')" 
+                class="w-full bg-amber-500 hover:bg-amber-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm">
+                <span>📷</span> Capturar Foto
             </button>
-            <div id="fotos_${p.id}" class="grid grid-cols-4 gap-2 mt-3"></div>
-        `;
+            
+            <!-- Onde as miniaturas das fotos capturadas vão aparecer -->
+            <div id="fotos_${p.id}" class="grid grid-cols-4 gap-2 empty:hidden">
+                <!-- Injetado via JS após capturar -->
+            </div>
+        </div>
+    `;
+    
+    // Chama a função para carregar fotos que já foram tiradas antes (se houver)
+    if (typeof atualizarListaFotos === "function") {
         atualizarListaFotos(p.id);
     }
 }
-
-function atualizarCheckboxes(idPergunta) {
-    const marcados = Array.from(document.querySelectorAll(`input[name="${idPergunta}"]:checked`)).map(c => c.value);
-    registrarResposta(idPergunta, marcados.join(";"));
+}
+function gerenciarMudancaCheckbox(idPergunta) {
+    const checkboxes = document.querySelectorAll(`input[name="${idPergunta}"]:checked`);
+    const valores = Array.from(checkboxes).map(cb => cb.value.trim());
+    registrarResposta(idPergunta, valores.join(";"));
 }
 
 
@@ -411,21 +401,46 @@ function applyConditionalLogic() {
 // 11. CÂMERA
 // ============================================================
 
-async function startCamera() {
-    const video = document.getElementById("video");
-    try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        video.srcObject = stream;
-        video.classList.remove("hidden");
-        document.getElementById("camera-placeholder").classList.add("hidden");
-        document.getElementById("capture-photo").disabled = false;
-    } catch (err) { alert("Erro ao acessar câmera."); }
-}
 
-function abrirCamera(id) {
-    currentPhotoInputId = id;
-    document.getElementById("camera-modal").classList.remove("hidden");
-    startCamera();
+
+function abrirCamera(idPergunta) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment'; // Abre a câmera traseira direto no mobile
+
+    input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const base64 = await reduzirImagem(file); // Função para não estourar o banco
+            salvarFoto(idPergunta, base64);
+        }
+    };
+    input.click();
+}
+async function reduzirImagem(file) {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 800; // Tamanho ideal para PWA
+                let width = img.width;
+                let height = img.height;
+                if (width > MAX_WIDTH) {
+                    height *= MAX_WIDTH / width;
+                    width = MAX_WIDTH;
+                }
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+                resolve(canvas.toDataURL('image/jpeg', 0.7)); // Qualidade 70%
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
 }
 
 document.getElementById("capture-photo").onclick = () => {
@@ -569,11 +584,8 @@ async function confirmarNovaVistoria() {
 window.showScreen = showScreen;
 window.selectRoteiro = selectRoteiro;
 window.abrirCamera = abrirCamera;
-window.fecharModal = fecharModal;
 window.registrarResposta = registrarResposta;
-window.atualizarCheckboxes = atualizarCheckboxes;
-window.exibirImagemApoioSublocal = exibirImagemApoioSublocal;
-window.montarSecoes = montarSecoes;
+window.gerenciarMudancaCheckbox = gerenciarMudancaCheckbox;
 window.baixarExcelConsolidado = baixarExcelConsolidado; 
 window.confirmarNovaVistoria = confirmarNovaVistoria;
 
