@@ -394,30 +394,40 @@ function applyConditionalLogic() {
     });
 }
 
-
-
-
 // ============================================================
 // 11. CÂMERA
 // ============================================================
 
-
-
-function abrirCamera(idPergunta) {
+async function abrirCamera(idPergunta) {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.capture = 'environment'; // Abre a câmera traseira direto no mobile
+    input.capture = 'environment'; 
 
     input.onchange = async (e) => {
         const file = e.target.files[0];
         if (file) {
-            const base64 = await reduzirImagem(file); // Função para não estourar o banco
-            salvarFoto(idPergunta, base64);
+            const base64 = await reduzirImagem(file); // Usa a função que você manteve
+            
+            // Salva para visualização na tela
+            if (!APP_STATE.fotos[idPergunta]) APP_STATE.fotos[idPergunta] = [];
+            APP_STATE.fotos[idPergunta].push(base64);
+
+            // Converte para Blob para salvar no seu IndexedDB (como você já fazia)
+            const res = await fetch(base64);
+            const blob = await res.blob();
+            const fotoId = `${idPergunta}_${Date.now()}`;
+            
+            if (window.DB_API && window.DB_API.saveFoto) {
+                await window.DB_API.saveFoto(fotoId, blob, idPergunta);
+            }
+
+            atualizarListaFotos(idPergunta);
         }
     };
     input.click();
 }
+
 async function reduzirImagem(file) {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -425,7 +435,7 @@ async function reduzirImagem(file) {
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 800; // Tamanho ideal para PWA
+                const MAX_WIDTH = 800; // Tamanho otimizado para 2026
                 let width = img.width;
                 let height = img.height;
                 if (width > MAX_WIDTH) {
@@ -435,7 +445,8 @@ async function reduzirImagem(file) {
                 canvas.width = width;
                 canvas.height = height;
                 canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-                resolve(canvas.toDataURL('image/jpeg', 0.7)); // Qualidade 70%
+                // Retorna Base64 comprimido
+                resolve(canvas.toDataURL('image/jpeg', 0.7)); 
             };
             img.src = e.target.result;
         };
@@ -443,34 +454,19 @@ async function reduzirImagem(file) {
     });
 }
 
-document.getElementById("capture-photo").onclick = () => {
-    const canvas = document.getElementById("canvas");
-    const video = document.getElementById("video");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d").drawImage(video, 0, 0);
-    
-    canvas.toBlob(blob => {
-        const fotoId = `${currentPhotoInputId}_${Date.now()}`;
-        if (!APP_STATE.fotos[currentPhotoInputId]) APP_STATE.fotos[currentPhotoInputId] = [];
-        APP_STATE.fotos[currentPhotoInputId].push({ id: fotoId, blob: blob });
-        
-        if (window.savePhotoToDB) savePhotoToDB(fotoId, blob, currentPhotoInputId);
-        
-        atualizarListaFotos(currentPhotoInputId);
-        fecharModal();
-    }, "image/jpeg", 0.7);
-};
-
-function fecharModal() {
-    if (stream) stream.getTracks().forEach(t => t.stop());
-    document.getElementById("camera-modal").classList.add("hidden");
-}
-
 function atualizarListaFotos(id) {
     const container = document.getElementById(`fotos_${id}`);
     if (!container || !APP_STATE.fotos[id]) return;
-    container.innerHTML = APP_STATE.fotos[id].map(f => `<div class="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center text-[10px]">FOTO</div>`).join("");
+
+    container.innerHTML = APP_STATE.fotos[id].map((base64, index) => `
+        <div class="relative w-20 h-20 shadow-sm">
+            <img src="${base64}" class="w-full h-full object-cover rounded-xl border border-gray-200">
+            <button onclick="removerFoto('${id}', ${index})" 
+                class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-lg">
+                ✕
+            </button>
+        </div>
+    `).join("");
 }
 
 function initCadastro() {
