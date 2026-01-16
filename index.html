@@ -12,6 +12,7 @@
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="manifest" href="manifest.json">
 
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
     <link rel="stylesheet" href="style.css">
@@ -25,18 +26,18 @@
     </style>
 </head>
 
-<body class="bg-gray-50 text-gray-900 font-sans antialiased">
+<body class="bg-white p-8  text-gray-900 font-sans antialiased">
 
 <!-- ===================================================== -->
 <!-- SCREEN: CADASTRO -->
 <!-- ===================================================== -->
 <section id="screen-cadastro" class="max-w-2xl mx-auto p-4 min-h-screen flex flex-col justify-center">
     <div class="text-center mb-8">
-        <img src="icon.png" class="h-24 mx-auto mb-4">
-        <h1 class="text-2xl font-black text-blue-900">VISTORIA TÉCNICA</h1>
-        <p class="text-gray-500 uppercase tracking-widest text-xs">Supervisão Ambiental</p>
+        <!-- Largura total (w-full) e altura fixa (h-24), mantendo o aspecto -->
+        <img src="icon.png" class="h-24 w-full object-contain mx-auto mb-4" alt="Logo da CEDAE">
+        <h1 class="text-2xl font-black text-[#0067ac]">Formulário de Visita Técnica</h1>
+        <p class="text-[#0067ac] uppercase tracking-widest text-xs">Supervisão Ambiental</p>
     </div>
-
     <div class="bg-white p-8 rounded-[2rem] shadow-xl">
         <div class="space-y-5">
 
@@ -61,14 +62,13 @@
             </div>
 
             <button id="btn-cadastro-continuar"
-                class="w-full bg-blue-700 text-white py-5 rounded-2xl font-black">
+                class="w-full bg-[#0067ac] text-white py-5 rounded-2xl font-black">
                 INICIAR VISTORIA
             </button>
 
         </div>
     </div>
 </section>
-
 
 <!-- ===================================================== -->
 <!-- SCREEN: SELEÇÃO DE ROTEIRO -->
