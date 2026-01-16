@@ -301,71 +301,65 @@ function renderFormulario(secaoFiltrada = null) {
 // ============================================================
 // 9. INPUTS
 // ============================================================
-
 function renderInput(p, container, valorSalvo) {
     const tipoInput = p.TipoInput; 
-    container.innerHTML = ""; // limpa container interno
+    container.innerHTML = ""; // Limpa container interno
 
     if (tipoInput === "text" || tipoInput === "textarea") {
         const input = document.createElement(tipoInput === "text" ? "input" : "textarea");
         input.className = "w-full border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none";
-        input.value = valorSalvo;
+        input.value = valorSalvo || ""; // Garante que não seja undefined
         input.oninput = (e) => registrarResposta(p.id, e.target.value);
         container.appendChild(input);
 
     } else if (tipoInput === "radio") {
         const opcoes = (p.Opcoes || "").split(";").filter(Boolean);
         opcoes.forEach(opt => {
-            const checked = valorSalvo === opt ? "checked" : "";
+            const optTrim = opt.trim();
+            const checked = valorSalvo === optTrim ? "checked" : "";
             const label = document.createElement("label");
             label.className = "flex items-center gap-3 p-3 border rounded-xl mb-2 hover:bg-gray-50 cursor-pointer";
             label.innerHTML = `
-                <input type="radio" name="${p.id}" value="${opt}" ${checked} 
-                       onchange="registrarResposta('${p.id}', '${opt}')" class="w-5 h-5 text-blue-600">
-                <span class="text-sm font-medium text-gray-700">${opt}</span>
+                <input type="radio" name="${p.id}" value="${optTrim}" ${checked} 
+                       onchange="registrarResposta('${p.id}', '${optTrim}')" class="w-5 h-5 text-blue-600">
+                <span class="text-sm font-medium text-gray-700">${optTrim}</span>
             `;
             container.appendChild(label);
         });
 
     } else if (tipoInput === "checkboxGroup") {
         const opcoes = (p.Opcoes || "").split(";").filter(Boolean);
-        // CORREÇÃO: Garante que a leitura dos marcados seja limpa
         const marcados = (valorSalvo || "").split(";").map(v => v.trim());
         
         opcoes.forEach(opt => {
-            const isChecked = marcados.includes(opt.trim()) ? "checked" : "";
+            const optTrim = opt.trim();
+            const isChecked = marcados.includes(optTrim) ? "checked" : "";
             const label = document.createElement("label");
             label.className = "flex items-center gap-3 p-3 border rounded-xl mb-2 hover:bg-gray-50 cursor-pointer";
             label.innerHTML = `
-                <input type="checkbox" name="${p.id}" value="${opt.trim()}" ${isChecked} 
+                <input type="checkbox" name="${p.id}" value="${optTrim}" ${isChecked} 
                        onchange="gerenciarMudancaCheckbox('${p.id}')" class="w-5 h-5 text-green-600 rounded">
-                <span class="text-sm font-medium text-gray-700">${opt}</span>
+                <span class="text-sm font-medium text-gray-700">${optTrim}</span>
             `;
             container.appendChild(label);
-        });
+        }); 
 
     } else if (tipoInput === "file") {
-    // Container para o botão e a galeria de miniaturas
-    container.innerHTML = `
-        <div class="space-y-3">
-            <button type="button" onclick="abrirCamera('${p.id}')" 
-                class="w-full bg-amber-500 hover:bg-amber-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm">
-                <span>📷</span> Capturar Foto
-            </button>
-            
-            <!-- Onde as miniaturas das fotos capturadas vão aparecer -->
-            <div id="fotos_${p.id}" class="grid grid-cols-4 gap-2 empty:hidden">
-                <!-- Injetado via JS após capturar -->
+        container.innerHTML = `
+            <div class="space-y-3">
+                <button type="button" onclick="abrirCamera('${p.id}')" 
+                    class="w-full bg-amber-500 hover:bg-amber-600 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-sm">
+                    <span>📷</span> Capturar Foto
+                </button>
+                <div id="fotos_${p.id}" class="grid grid-cols-4 gap-2 empty:hidden"></div>
             </div>
-        </div>
-    `;
-    
-    // Chama a função para carregar fotos que já foram tiradas antes (se houver)
-    if (typeof atualizarListaFotos === "function") {
-        atualizarListaFotos(p.id);
+        `;
+        if (typeof atualizarListaFotos === "function") {
+            atualizarListaFotos(p.id);
+        }
     }
 }
-}
+
 function gerenciarMudancaCheckbox(idPergunta) {
     const checkboxes = document.querySelectorAll(`input[name="${idPergunta}"]:checked`);
     const valores = Array.from(checkboxes).map(cb => cb.value.trim());
@@ -418,9 +412,9 @@ async function abrirCamera(idPergunta) {
             const blob = await res.blob();
             const fotoId = `${idPergunta}_${Date.now()}`;
             
-            if (window.DB_API && window.DB_API.saveFoto) {
-                await window.DB_API.saveFoto(fotoId, blob, idPergunta);
-            }
+           if (window.savePhotoToDB) {
+            await window.savePhotoToDB(fotoId, blob, idPergunta);
+    }
 
             atualizarListaFotos(idPergunta);
         }
@@ -454,21 +448,27 @@ async function reduzirImagem(file) {
     });
 }
 
-function atualizarListaFotos(id) {
-    const container = document.getElementById(`fotos_${id}`);
-    if (!container || !APP_STATE.fotos[id]) return;
+async function atualizarListaFotos(idPergunta) {
+    const container = document.getElementById(`fotos_${idPergunta}`);
+    if (!container) return;
 
-    container.innerHTML = APP_STATE.fotos[id].map((base64, index) => `
-        <div class="relative w-20 h-20 shadow-sm">
-            <img src="${base64}" class="w-full h-full object-cover rounded-xl border border-gray-200">
-            <button onclick="removerFoto('${id}', ${index})" 
-                class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-lg">
-                ✕
-            </button>
-        </div>
-    `).join("");
+    const fotosNoBanco = await DB_API.getFotosPergunta(idPergunta);
+    
+    // Limpa e reconstrói para evitar o "X" de imagem quebrada
+    container.innerHTML = "";
+
+    for (let foto of fotosNoBanco) {
+        const url = URL.createObjectURL(foto.blob);
+        const imgDiv = document.createElement("div");
+        imgDiv.className = "relative w-20 h-20 shadow-sm";
+        imgDiv.innerHTML = `
+            <img src="${url}" class="w-full h-full object-cover rounded-xl border">
+            <button onclick="removerFoto('${foto.foto_id}', '${idPergunta}')" 
+                    class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-[10px]">✕</button>
+        `;
+        container.appendChild(imgDiv);
+    }
 }
-
 function initCadastro() {
     document.getElementById("btn-cadastro-continuar").onclick = () => {
         APP_STATE.avaliador = document.getElementById("avaliador").value;
@@ -494,44 +494,90 @@ function initCadastro() {
 // ============================================================
 // 12. EXPORTAÇÃO E RESET
 // ============================================================
+async function baixarExcelConsolidado() {
+    try {
+        console.log("📊 Consolidando respostas...");
+        const workbook = new ExcelJS.Workbook();
+        
+        const configuracao = [
+            { nome: "Geral", id: "geral", fonte: window.ROTEIRO_GERAL },
+            { nome: "PGE", id: "pge", fonte: window.ROTEIRO_PGE },
+            { nome: "Acid. Ambientais", id: "aa", fonte: window.ROTEIRO_AA }
+        ];
 
-function baixarExcelConsolidado() {
-    const local = APP_STATE.local || "Sem_Local";
-    // Formatação de data simples para o nome do arquivo
-    const d = new Date();
-    const dataFicheiro = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
-    const nomeArquivo = `visita_completa_${local.replace(/\s+/g, '_')}_${dataFicheiro}.xlsx`;
-
-    const wb = XLSX.utils.book_new();
-
-    const configuracao = [
-        { nome: "Geral", id: "geral", fonte: ROTEIRO_GERAL },
-        { nome: "PGE", id: "pge", fonte: ROTEIRO_PGE },
-        { nome: "Acid. Ambientais", id: "aa", fonte: ROTEIRO_AA }
-    ];
-
-    configuracao.forEach(config => {
-        // Mapeia a FONTE fixa para garantir que TODAS as perguntas existam no Excel
-        const linhas = config.fonte.map(p => {
-            const resp = (APP_STATE.respostas[config.id] && APP_STATE.respostas[config.id][p.id]) || "";
+        for (const config of configuracao) {
+            if (!config.fonte) continue;
+            const sheet = workbook.addWorksheet(config.nome);
             
-            return {
-                "local": APP_STATE.local,
-                "secao": p.Secao || p["Seção"] || "",
-                "formulario": config.id,
-                "id_pergunta": p.id,
-                "pergunta": p.Pergunta,
-                "resposta": Array.isArray(resp) ? "" : resp, 
-                "fotos": Array.isArray(resp) ? resp.join("; ") : "" 
-            };
-        });
+            sheet.columns = [
+                { header: 'SEÇÃO', key: 'secao', width: 20 },
+                { header: 'PERGUNTA', key: 'pergunta', width: 50 },
+                { header: 'RESPOSTA', key: 'resposta', width: 40 },
+                { header: 'FOTOS (ANEXOS)', key: 'fotos', width: 25 }
+            ];
 
-        const ws = XLSX.utils.json_to_sheet(linhas);
-        XLSX.utils.book_append_sheet(wb, ws, config.nome);
-    });
+            // Pega as respostas salvas para este roteiro específico
+            const respostasDoTipo = APP_STATE.respostas[config.id] || {};
 
-    XLSX.writeFile(wb, nomeArquivo);
+            for (const p of config.fonte) {
+                // CORREÇÃO PARA PGE: No PGE, só exportamos se a pergunta for do Local e Sublocal selecionados
+                if (config.id === "pge") {
+                    if (p.Local !== APP_STATE.local || p.Sublocal !== APP_STATE.sublocal) {
+                        continue; // Pula perguntas que não são deste sublocal
+                    }
+                }
+
+                const respostaTexto = respostasDoTipo[p.id] || "";
+                
+                // Se a pergunta não tem resposta E não tem foto, e você quiser pular, use:
+                // if (!respostaTexto) continue;
+
+                const novaLinha = sheet.addRow({
+                    secao: p.Secao || p["Seção"] || "",
+                    pergunta: p.Pergunta,
+                    resposta: String(respostaTexto) // Garante que o Excel trate como texto
+                });
+
+                // LÓGICA DE FOTOS (Mantida conforme seu relato de funcionamento)
+                try {
+                    const fotosNoBanco = await window.DB_API.getFotosPergunta(p.id);
+                    if (fotosNoBanco && fotosNoBanco.length > 0) {
+                        novaLinha.height = 100;
+                        for (let i = 0; i < fotosNoBanco.length; i++) {
+                            const arrayBuffer = await fotosNoBanco[i].blob.arrayBuffer();
+                            const imageId = workbook.addImage({
+                                buffer: arrayBuffer,
+                                extension: 'jpeg',
+                            });
+                            sheet.addImage(imageId, {
+                                tl: { col: 3, row: novaLinha.number - 1 },
+                                ext: { width: 120, height: 120 }
+                            });
+                        }
+                    }
+                } catch (e) { console.error("Erro na foto:", e); }
+            }
+        }
+
+        // Finalização (Download)
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        
+        // Use o método nativo se o saveAs falhar
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Relatorio_${APP_STATE.local}_${new Date().getTime()}.xlsx`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+
+    } catch (err) {
+        console.error("Erro crítico:", err);
+    }
 }
+
+      
+// CONFIRMAR NOVA VISTORIA
 async function confirmarNovaVistoria() {
     const msg = "Tem certeza que deseja iniciar uma nova vistoria? Todos os dados atuais (respostas e fotos) serão apagados permanentemente.";
     
