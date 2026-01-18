@@ -55,26 +55,28 @@ function showScreen(id) {
 // ============================================================
 
 async function initApp() {
-    // 1. Tenta carregar dados salvos no IndexedDB
-    try {
+    // 1. Carregar meta dados do LocalStorage
+    carregarMetaDoLocalStorage();
+
+    // 2. Tenta carregar dados salvos no IndexedDB (se sua API suportar isso)
+    if (window.DB_API && window.DB_API.loadVisita) {
         const dadosSalvos = await DB_API.loadVisita();
-        if (dadosSalvos) {
-            // Restaura o estado global (respostas, local, sublocal, etc)
-            APP_STATE = dadosSalvos;
-            console.log("♻️ Estado da vistoria restaurado com sucesso.");
-        }
-    } catch (err) {
-        console.error("Erro ao restaurar dados:", err);
+        if (dadosSalvos) APP_STATE = dadosSalvos;
     }
 
-    // 2. Popula o seletor de Locais
+    // 3. Popula o seletor de Locais
     const sel = document.getElementById("local");
     if (sel) {
         sel.innerHTML = `<option disabled selected value="">Selecionar Local...</option>` +
             LOCAIS_VISITA.map(l => `<option value="${l}">${l}</option>`).join("");
-        
-        // Se restaurou o estado, já deixa o local selecionado no HTML
         if (APP_STATE.local) sel.value = APP_STATE.local;
+    }
+
+    // 4. Decisão de Tela Inicial
+    if (APP_STATE.local && APP_STATE.avaliador) {
+        showScreen("screen-select-roteiro");
+    } else {
+        showScreen("screen-cadastro");
     }
 }
    
@@ -389,39 +391,31 @@ function applyConditionalLogic() {
 }
 
 // ============================================================
-// 11. CÂMERA
+// SISTEMA DE CÂMERA E PROCESSAMENTO DE IMAGENS
 // ============================================================
 
+/**
+ * 1. ACIONA A CÂMERA NATIVA
+ */
 async function abrirCamera(idPergunta) {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.capture = 'environment'; 
+    input.capture = 'environment'; // Abre a câmera traseira preferencialmente
 
     input.onchange = async (e) => {
         const file = e.target.files[0];
         if (file) {
-            const base64 = await reduzirImagem(file); // Usa a função que você manteve
-            
-            // Salva para visualização na tela
-            if (!APP_STATE.fotos[idPergunta]) APP_STATE.fotos[idPergunta] = [];
-            APP_STATE.fotos[idPergunta].push(base64);
-
-            // Converte para Blob para salvar no seu IndexedDB (como você já fazia)
-            const res = await fetch(base64);
-            const blob = await res.blob();
-            const fotoId = `${idPergunta}_${Date.now()}`;
-            
-           if (window.savePhotoToDB) {
-            await window.savePhotoToDB(fotoId, blob, idPergunta);
-    }
-
-            atualizarListaFotos(idPergunta);
+            // Inicia o processamento da imagem capturada
+            await processarFoto(idPergunta, file);
         }
     };
     input.click();
 }
 
+/**
+ * 2. REDUZ E COMPRIME A IMAGEM (Otimização de Armazenamento)
+ */
 async function reduzirImagem(file) {
     return new Promise((resolve) => {
         const reader = new FileReader();
@@ -429,18 +423,22 @@ async function reduzirImagem(file) {
             const img = new Image();
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 800; // Tamanho otimizado para 2026
+                const MAX_WIDTH = 800;
                 let width = img.width;
                 let height = img.height;
+
                 if (width > MAX_WIDTH) {
                     height *= MAX_WIDTH / width;
                     width = MAX_WIDTH;
                 }
+
                 canvas.width = width;
                 canvas.height = height;
-                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-                // Retorna Base64 comprimido
-                resolve(canvas.toDataURL('image/jpeg', 0.7)); 
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+
+                // Retorna Base64 em formato JPEG com 70% de qualidade
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
             };
             img.src = e.target.result;
         };
@@ -448,27 +446,109 @@ async function reduzirImagem(file) {
     });
 }
 
+/**
+ * 3. PROCESSA, CONVERTE E SALVA
+ */
+async function processarFoto(idPergunta, file) {
+    try {
+        // Redução para Base64 (usado para visualização rápida e Excel)
+        const base64Reduzido = await reduzirImagem(file); 
+        
+        // Conversão para Blob (Armazenamento mais eficiente no IndexedDB)
+        const res = await fetch(base64Reduzido);
+        const blob = await res.blob();
+        
+        const fotoId = `${idPergunta}_${Date.now()}`;
+
+        // Salva no Banco de Dados
+        if (window.savePhotoToDB) {
+            await window.savePhotoToDB(fotoId, blob, idPergunta, base64Reduzido);
+        }
+
+        // Atualiza a galeria na tela
+        await atualizarListaFotos(idPergunta);
+        
+        console.log("📸 Foto processada e salva com sucesso.");
+    } catch (err) {
+        console.error("Erro no processamento da foto:", err);
+    }
+}
+
+/**
+ * 4. INTERFACE: ATUALIZA A LISTA DE FOTOS NA TELA
+ */
 async function atualizarListaFotos(idPergunta) {
     const container = document.getElementById(`fotos_${idPergunta}`);
     if (!container) return;
 
+    // Busca fotos diretamente do IndexedDB
     const fotosNoBanco = await DB_API.getFotosPergunta(idPergunta);
-    
-    // Limpa e reconstrói para evitar o "X" de imagem quebrada
     container.innerHTML = "";
 
-    for (let foto of fotosNoBanco) {
-        const url = URL.createObjectURL(foto.blob);
+    fotosNoBanco.forEach(foto => {
         const imgDiv = document.createElement("div");
-        imgDiv.className = "relative w-20 h-20 shadow-sm";
+        imgDiv.className = "relative w-20 h-20";
+        
+        // Prioriza o Base64 salvo para performance, senão cria URL temporária do Blob
+        const src = foto.base64 || (foto.blob ? URL.createObjectURL(foto.blob) : "");
+        
         imgDiv.innerHTML = `
-            <img src="${url}" class="w-full h-full object-cover rounded-xl border">
+            <img src="${src}" class="w-full h-full object-cover rounded-xl border shadow-sm">
             <button onclick="removerFoto('${foto.foto_id}', '${idPergunta}')" 
-                    class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-[10px]">✕</button>
+                    class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center border-2 border-white shadow-md active:scale-90 transition-transform">
+                ✕
+            </button>
         `;
         container.appendChild(imgDiv);
+    });
+}
+
+/**
+ * 5. REMOVE FOTO DO BANCO E DA TELA
+ */
+async function removerFoto(fotoId, idPergunta) {
+    if (!confirm("Deseja excluir esta foto definitivamente?")) return;
+
+    try {
+        const db = await DB_API.openDB();
+        const tx = db.transaction(['fotos'], 'readwrite');
+        const store = tx.objectStore('fotos');
+
+        store.delete(fotoId);
+
+        await tx.complete;
+        await atualizarListaFotos(idPergunta);
+    } catch (err) {
+        console.error("Erro ao remover foto:", err);
+        alert("Erro ao excluir a foto.");
     }
 }
+
+
+/**
+ * 6. PERSISTÊNCIA GLOBAL (Utilizada pelo processarFoto)
+ */
+window.savePhotoToDB = async (fotoId, blob, idPergunta, base64) => {
+    const db = await DB_API.openDB(); 
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fotos'], 'readwrite');
+        const store = transaction.objectStore('fotos');
+
+        const request = store.put({
+            foto_id: fotoId,
+            pergunta_id: idPergunta,
+            blob: blob,
+            base64: base64,
+            timestamp: new Date().toISOString()
+        });
+
+        request.onsuccess = () => resolve();
+        request.onerror = (e) => reject(e);
+    });
+};
+// ---------------------
+// Iniciar cadastro
+
 function initCadastro() {
     document.getElementById("btn-cadastro-continuar").onclick = () => {
         APP_STATE.avaliador = document.getElementById("avaliador").value;
@@ -483,13 +563,14 @@ function initCadastro() {
         
         showScreen("screen-select-roteiro");
     };
-}
+
     // Se já havia uma vistoria em curso, podemos pular direto para a seleção de roteiro
     if (APP_STATE.local && APP_STATE.avaliador) {
         showScreen("screen-select-roteiro");
     } else {
         showScreen("screen-cadastro");
  }
+}
 
 // ============================================================
 // 12. EXPORTAÇÃO E RESET
@@ -619,6 +700,42 @@ async function confirmarNovaVistoria() {
     }
 
 }
+window.savePhotoToDB = async (fotoId, blob, idPergunta, base64) => {
+    const db = await DB_API.openDB();
+
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(['fotos'], 'readwrite');
+        const store = tx.objectStore('fotos');
+
+        const req = store.put({
+            foto_id: fotoId,
+            pergunta_id: idPergunta,
+            blob,
+            base64,
+            timestamp: Date.now()
+        });
+
+        req.onsuccess = () => resolve();
+        req.onerror = (e) => reject(e);
+    });
+};
+
+// Exemplo de como seu getFotosPergunta pode ser ajustado:
+DB_API.getFotosPergunta = async (idPergunta) => {
+    const db = await DB_API.openDB();
+
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(['fotos'], 'readonly');
+        const store = tx.objectStore('fotos');
+        const req = store.getAll();
+
+        req.onsuccess = () => {
+            resolve(req.result.filter(f => f.pergunta_id === idPergunta));
+        };
+
+        req.onerror = (e) => reject(e);
+    });
+};
 
 // ------------------------------------------------------------
 // VINCULAÇÕES GLOBAIS (FINAL DO ARQUIVO) - Versão Blindada
@@ -626,6 +743,7 @@ async function confirmarNovaVistoria() {
 window.showScreen = showScreen;
 window.selectRoteiro = selectRoteiro;
 window.abrirCamera = abrirCamera;
+window.removerFoto = removerFoto; // Faltava esta!
 window.registrarResposta = registrarResposta;
 window.gerenciarMudancaCheckbox = gerenciarMudancaCheckbox;
 window.baixarExcelConsolidado = baixarExcelConsolidado; 

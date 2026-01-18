@@ -87,27 +87,26 @@ const DB_API = {
     // --------------------------------------------------------
     // SALVAR FOTO
     // --------------------------------------------------------
-      async saveFoto(fotoId, blob, idPergunta) {
-        const db = await this.openDB();
-        const tx = db.transaction(STORE_FOTOS, "readwrite");
-        const store = tx.objectStore(STORE_FOTOS);
+      async saveFoto(fotoId, blob, idPergunta, base64) {
+    const db = await this.openDB();
+    const tx = db.transaction(STORE_FOTOS, "readwrite");
+    const store = tx.objectStore(STORE_FOTOS);
 
-        // MELHORIA: Fallback para tipoRoteiro caso APP_STATE falhe
-        const tipo = (typeof APP_STATE !== 'undefined') ? APP_STATE.tipoRoteiro : "desconhecido";
+    const tipo = (typeof APP_STATE !== 'undefined') ? APP_STATE.tipoRoteiro : "desconhecido";
 
-        return new Promise((resolve, reject) => {
-            const req = store.put({
-                foto_id: fotoId,
-                pergunta_id: idPergunta,
-                tipo_roteiro: tipo, 
-                blob: blob,
-                timestamp: new Date().toISOString()
-            });
-            req.onsuccess = () => resolve(true);
-            req.onerror = () => reject();
+    return new Promise((resolve, reject) => {
+        const req = store.put({
+            foto_id: fotoId,
+            pergunta_id: idPergunta,
+            tipo_roteiro: tipo, 
+            blob: blob,
+            base64: base64, // CRUCIAL: Adicionado para o ExcelJS e Miniaturas
+            timestamp: new Date().toISOString()
         });
-    },
-
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => reject();
+    });
+},
 
     // --------------------------------------------------------
     // OBTER FOTOS DE UMA PERGUNTA
@@ -140,15 +139,16 @@ const DB_API = {
 // 3. FUNÇÕES GLOBAIS USADAS PELO APP.JS
 // ------------------------------------------------------------
 
-window.saveAnswerToDB = () => {
+window.saveAnswerToDB = (idPergunta, valor) => {
     if (typeof APP_STATE === "undefined") return;
+    // Debounce opcional: você pode colocar um pequeno atraso aqui se quiser evitar muitos salvamentos
     DB_API.saveVisita(APP_STATE).catch(err => console.error(err));
 };
 
-window.savePhotoToDB = (fotoId, blob, idPergunta) => {
-    return DB_API.saveFoto(fotoId, blob, idPergunta);
+// Agora aceita o base64 vindo do reduzirImagem() do app.js
+window.savePhotoToDB = (fotoId, blob, idPergunta, base64) => {
+    return DB_API.saveFoto(fotoId, blob, idPergunta, base64);
 };
-
 window.DB_API = DB_API;
 // ------------------------------------------------------------
 // 4. EXPOSIÇÃO GLOBAL (SE NECESSÁRIO)
