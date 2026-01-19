@@ -2,8 +2,6 @@
 // APP.JS – VERSÃO INTEGRAL CORRIGIDA (ORGANIZADA POR FLUXO)
 // ============================================================
 
-
-
 // ============================================================
 // 1. CONSTANTES E ESTADO GLOBAL
 // ============================================================
@@ -22,6 +20,7 @@ let APP_STATE = {
     data: "",
     tipoRoteiro: null,
     sublocal: "",
+    roteiro: [],
     respostas: {
         geral: {},
         pge: {},
@@ -55,31 +54,48 @@ function showScreen(id) {
 // ============================================================
 
 async function initApp() {
-    // 1. Carregar meta dados do LocalStorage
+    // 1. Carregar meta dados do LocalStorage (preenche APP_STATE.local, se existir)
     carregarMetaDoLocalStorage();
 
-    // 2. Tenta carregar dados salvos no IndexedDB (se sua API suportar isso)
+    // 2. Tenta carregar dados salvos no IndexedDB (sobrescreve APP_STATE, se existir visita salva)
     if (window.DB_API && window.DB_API.loadVisita) {
         const dadosSalvos = await DB_API.loadVisita();
-        if (dadosSalvos) APP_STATE = dadosSalvos;
+        if (dadosSalvos) {
+            // Se houver dados salvos, use-os, mas garanta que o local persista se o DB não tiver
+            APP_STATE = dadosSalvos; 
+        }
     }
 
     // 3. Popula o seletor de Locais
-    const sel = document.getElementById("local");
-    if (sel) {
-        sel.innerHTML = `<option disabled selected value="">Selecionar Local...</option>` +
+    const selLocal = document.getElementById("local"); // Variável renomeada para clareza
+    if (selLocal) {
+        selLocal.innerHTML = `<option disabled selected value="">Selecionar Local...</option>` +
             LOCAIS_VISITA.map(l => `<option value="${l}">${l}</option>`).join("");
-        if (APP_STATE.local) sel.value = APP_STATE.local;
+        
+        // Define o valor selecionado com base no APP_STATE.local carregado
+        if (APP_STATE.local) {
+            selLocal.value = APP_STATE.local;
+        }
+
+        // ADICIONADO: Este evento garante que APP_STATE.local seja atualizado IMEDIATAMENTE
+        selLocal.onchange = () => {
+            APP_STATE.local = selLocal.value;
+            localStorage.setItem("local", selLocal.value);
+            // Opcional: Salvar no DB imediatamente também
+            // if (window.DB_API && window.DB_API.saveVisita) DB_API.saveVisita(APP_STATE);
+        };
     }
 
     // 4. Decisão de Tela Inicial
     if (APP_STATE.local && APP_STATE.avaliador) {
+        // Se já tem local e avaliador, vai para a seleção de roteiro
         showScreen("screen-select-roteiro");
     } else {
+        // Senão, fica na tela de cadastro
         showScreen("screen-cadastro");
     }
 }
-   
+
 // ============================================================
 // 4. PERSISTÊNCIA DE RESPOSTAS
 // ============================================================
@@ -211,44 +227,91 @@ function montarSublocaisFiltrados(localEscolhido) {
     if (img) img.remove();
 
     selSub.onchange = () => {
-        if (selSub.value) {
-            APP_STATE.sublocal = selSub.value;
-            exibirImagemApoioSublocal(selSub.value);
-            montarSecoes();
-            renderFormulario();
-        }
-    };
+    if (selSub.value) {
+        APP_STATE.sublocal = selSub.value;
+        
+        // 1. Limpa o que tiver de pergunta velha primeiro
+        document.getElementById("conteudo_formulario").innerHTML = ""; 
+        
+        // 2. Coloca a imagem (ela dará o prepend no container vazio)
+        exibirImagemApoioSublocal(selSub.value);
+        
+        // 3. Monta as seções e renderiza (o novo renderFormulario não vai apagar a imagem)
+        montarSecoes();
+        renderFormulario();
+    }
+};
 }
-
 // ============================================================
 // 7. IMAGEM DE APOIO (PGE)
 // ============================================================
 
-// 1. Limpa qualquer imagem de apoio que já esteja na tela
 function exibirImagemApoioSublocal(sublocal) {
     const containerForm = document.getElementById("conteudo_formulario");
+    if (!containerForm) return;
+
+    // 1. Limpa a imagem anterior para não duplicar
     const existente = document.getElementById("container_imagem_apoio_sublocal");
     if (existente) existente.remove();
 
+    // Só executa se for roteiro PGE e houver um sublocal selecionado
     if (APP_STATE.tipoRoteiro !== "pge" || !sublocal) return;
 
-    const itemComImagem = window.ROTEIRO_PGE.find(p => 
-        p.Local === APP_STATE.local && 
-        p.Sublocal === sublocal && 
-        p.ImagemApoio && p.ImagemApoio.length > 100
-    );
+    // 2. Normalização rigorosa para evitar erros de digitação/acentos no JSON
+    const limpar = (str) => {
+        if (!str) return "";
+        return str.toString().toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove acentos (São -> Sao)
+            .replace(/[^a-z0-9]/g, ""); // Remove tudo que não é letra ou número
+    };
 
+    const localAlvo = limpar(APP_STATE.local);
+    const sublocalAlvo = limpar(sublocal);
+
+    // 3. Busca em TODAS as linhas do sublocal até achar a que contém a imagem
+    const itemComImagem = window.ROTEIRO_PGE.find(p => {
+        const localJSON = limpar(p.Local);
+        const sublocalJSON = limpar(p.Sublocal);
+        
+        // Verifica se Local e Sublocal batem
+        const ehMesmoLugar = (localJSON === localAlvo && sublocalJSON === sublocalAlvo);
+        
+        // Verifica se esta linha específica tem a imagem (em qualquer uma das duas chaves possíveis)
+        const temImagem = (
+            (p.ImagemApoio && p.ImagemApoio.length > 100) || 
+            (p["Imagem Apoio"] && p["Imagem Apoio"].length > 100)
+        );
+
+        return ehMesmoLugar && temImagem;
+    });
+
+    // 4. Renderiza se encontrar
     if (itemComImagem) {
+        let base64Data = itemComImagem.ImagemApoio || itemComImagem["Imagem Apoio"];
+        
+        // Garante que o Base64 tenha o prefixo correto para o navegador exibir
+        if (!base64Data.startsWith("data:image")) {
+            base64Data = "data:image/jpeg;base64," + base64Data;
+        }
+
         const divImg = document.createElement("div");
         divImg.id = "container_imagem_apoio_sublocal";
-        divImg.className = "bg-white p-2 rounded-2xl shadow-sm mb-6 border-2 border-blue-100";
+        // Estilização com margem superior para não ficar colado no cabeçalho
+        divImg.className = "bg-white p-2 rounded-2xl shadow-sm mb-6 border-2 border-blue-400 animate-in mt-2";
+        
         divImg.innerHTML = `
-            <p class="text-[10px] font-bold text-blue-500 mb-1">IMAGEM DE APOIO</p>
-            <img src="${itemComImagem.ImagemApoio}" class="w-full h-auto rounded-lg shadow-inner" 
+            <p class="text-[10px] font-bold text-blue-600 mb-1 uppercase">ℹ️ Orientação: ${sublocal}</p>
+            <img src="${base64Data}" 
+                 class="w-full h-auto rounded-lg shadow-md block" 
+                 style="max-height: 350px; object-fit: contain; background-color: #f8f8f8;"
                  onclick="window.open(this.src, '_blank')">
         `;
-        // Insere no topo do formulário
+        
+        // Usa prepend para garantir que fique no TOPO, acima das perguntas
         containerForm.prepend(divImg);
+        console.log("✅ Imagem inserida no topo para:", sublocal);
+    } else {
+        console.warn("⚠️ Nenhuma imagem de apoio encontrada nas perguntas de:", sublocal);
     }
 }
 
@@ -259,13 +322,25 @@ function exibirImagemApoioSublocal(sublocal) {
 function renderFormulario(secaoFiltrada = null) {
     const container = document.getElementById("conteudo_formulario");
     if (!container) return;
-    container.innerHTML = "";
-    
+
+    // 1. Em vez de limpar TUDO, removemos apenas as perguntas (as divs de grupo)
+    // Isso preserva o "container_imagem_apoio_sublocal" se ele já estiver lá
+    const gruposAntigos = container.querySelectorAll('[id^="group_"]');
+    gruposAntigos.forEach(el => el.remove());
+
+    // Se o container estiver com a mensagem de "selecione sublocal", limpamos ela
+    if (container.innerText.includes("Selecione um sublocal")) {
+        container.innerHTML = "";
+    }
+
     let perguntas = APP_STATE.roteiro;
-     if (APP_STATE.tipoRoteiro !== "pge") {
+    
+    // Limpeza de imagem se mudar de roteiro
+    if (APP_STATE.tipoRoteiro !== "pge") {
         const img = document.getElementById("container_imagem_apoio_sublocal");
         if (img) img.remove();
     }
+
     if (APP_STATE.tipoRoteiro === "pge") {
         const sub = document.getElementById("sublocal_select").value;
         if (!sub) {
@@ -279,26 +354,24 @@ function renderFormulario(secaoFiltrada = null) {
         perguntas = perguntas.filter(p => (p.Secao || p["Seção"]) === secaoFiltrada);
     }
 
+    // 2. Adiciona as perguntas sem resetar o innerHTML do container pai
     perguntas.forEach(p => {
         const div = document.createElement("div");
         div.id = `group_${p.id}`;
-        div.className = "bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-4";
+        div.className = "bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-4 animate-in";
         
-       const valorSalvo =
-    APP_STATE.respostas[APP_STATE.tipoRoteiro]?.[p.id] ?? "";
-
+        const valorSalvo = APP_STATE.respostas[APP_STATE.tipoRoteiro]?.[p.id] ?? "";
 
         div.innerHTML = `
             <label class="block font-bold text-gray-800 mb-3">${p.Pergunta}</label>
             <div id="input-root-${p.id}"></div>
         `;
-        container.appendChild(div);
+        container.appendChild(div); // Usa appendChild para colocar DEPOIS da imagem
         renderInput(p, document.getElementById(`input-root-${p.id}`), valorSalvo); 
     });
 
     applyConditionalLogic();
 }
-
 
 // ============================================================
 // 9. INPUTS

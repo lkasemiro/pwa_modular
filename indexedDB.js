@@ -38,7 +38,10 @@ const DB_API = {
             };
 
             request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject("Erro ao abrir IndexedDB");
+           request.onerror = () => {
+                console.error("Falha Crítica no IndexedDB:", request.error);
+                reject(request.error);
+            };
         });
     },
 
@@ -138,13 +141,24 @@ const DB_API = {
 // ------------------------------------------------------------
 // 3. FUNÇÕES GLOBAIS USADAS PELO APP.JS
 // ------------------------------------------------------------
+let saveTimer = null;
+const SAVE_DELAY = 10000; // Salva 1 segundo (1000ms) após a última digitação
+
 
 window.saveAnswerToDB = (idPergunta, valor) => {
     if (typeof APP_STATE === "undefined") return;
-    // Debounce opcional: você pode colocar um pequeno atraso aqui se quiser evitar muitos salvamentos
-    DB_API.saveVisita(APP_STATE).catch(err => console.error(err));
-};
 
+    // Limpa o timer anterior se o usuário digitou novamente
+    if (saveTimer) {
+        clearTimeout(saveTimer);
+    }
+
+    // Define um novo timer para salvar o estado completo após o atraso
+    saveTimer = setTimeout(() => {
+        console.log("⏱️ Salvando estado completo via debounce...");
+        DB_API.saveVisita(APP_STATE).catch(err => console.error(err));
+    }, SAVE_DELAY);
+};
 // Agora aceita o base64 vindo do reduzirImagem() do app.js
 window.savePhotoToDB = (fotoId, blob, idPergunta, base64) => {
     return DB_API.saveFoto(fotoId, blob, idPergunta, base64);
