@@ -3821,7 +3821,7 @@ window.ROTEIRO_GERAL = [
     "id": "7",
     "Secao": "Geral",
     "Pergunta": "3.1. Nº de placas identificadas",
-    "TipoInput": "number",
+    "TipoInput": "textarea",
     "Opcoes": "",
     "Condicao": "Sim",
     "Pai": "6",
